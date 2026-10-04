@@ -136,8 +136,6 @@ public final class NativeInventoryContent implements InventoryContent {
             if (events != null) {
                 events.bind(CustomUIEventBindingType.SlotClicking, grid, "DragSource", section.name(), false);
                 events.bind(CustomUIEventBindingType.Dropped, grid, "Drop", section.name(), false);
-                events.bind(CustomUIEventBindingType.SlotClickReleaseWhileDragging, grid, "DragRelease", section.name(), false);
-                events.bind(CustomUIEventBindingType.SlotClickPressWhileDragging, grid, "DragPress", section.name(), false);
                 events.bind(CustomUIEventBindingType.DragCancelled, grid, "CancelDrag", "", false);
                 if (section != NativeInventorySection.UTILITY) {
                     events.bind(CustomUIEventBindingType.SlotMouseEntered, grid, "HoverSource", section.name(), false);
@@ -190,8 +188,6 @@ public final class NativeInventoryContent implements InventoryContent {
         if (bindEvents) {
             events.bind(CustomUIEventBindingType.SlotClicking, grid, "DragSource", section.name(), false);
             events.bind(CustomUIEventBindingType.Dropped, grid, "Drop", section.name(), false);
-            events.bind(CustomUIEventBindingType.SlotClickReleaseWhileDragging, grid, "DragRelease", section.name(), false);
-            events.bind(CustomUIEventBindingType.SlotClickPressWhileDragging, grid, "DragPress", section.name(), false);
             events.bind(CustomUIEventBindingType.DragCancelled, grid, "CancelDrag", "", false);
             events.bind(CustomUIEventBindingType.SlotMouseEntered, grid, "HoverSource", section.name(), false);
             events.bind(CustomUIEventBindingType.SlotMouseExited, grid, "UnhoverSource", section.name(), false);
@@ -484,8 +480,9 @@ public final class NativeInventoryContent implements InventoryContent {
             };
         } finally {
             selection = null;
-            // Partial placement can leave a stack on the cursor. Keep its detached
-            // source and only rebase quantities confirmed by our native move.
+            dragOrigin = null;
+            dragOrigins.clear();
+            hoveredSelection = null;
         }
     }
 

@@ -73,15 +73,11 @@ public final class UtilitySlotSelector {
             String slot = Integer.toString(index);
             events.bind(CustomUIEventBindingType.SlotClicking, grid, "UtilityWheelDragSource", slot, false);
             events.bind(CustomUIEventBindingType.Dropped, grid, "UtilityWheelDrop", slot, false);
-            events.bind(CustomUIEventBindingType.SlotClickReleaseWhileDragging, grid, "UtilityWheelDragRelease", slot, false);
-            events.bind(CustomUIEventBindingType.SlotClickPressWhileDragging, grid, "UtilityWheelDragPress", slot, false);
             events.bind(CustomUIEventBindingType.DragCancelled, grid, "CancelDrag", "", false);
         }
         String center = "#PlayerPanelHost #UtilityWheelCenterGrid";
         events.bind(CustomUIEventBindingType.SlotClicking, center, "DragSource", "UTILITY", false);
         events.bind(CustomUIEventBindingType.Dropped, center, "Drop", "UTILITY", false);
-        events.bind(CustomUIEventBindingType.SlotClickReleaseWhileDragging, center, "DragRelease", "UTILITY", false);
-        events.bind(CustomUIEventBindingType.SlotClickPressWhileDragging, center, "DragPress", "UTILITY", false);
         events.bind(CustomUIEventBindingType.DragCancelled, center, "CancelDrag", "", false);
     }
 
