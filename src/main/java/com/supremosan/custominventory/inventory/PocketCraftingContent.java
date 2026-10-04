@@ -59,24 +59,16 @@ public final class PocketCraftingContent implements InventoryContent {
         return false;
     }
 
-    private static final List<String> VANILLA_POCKET_ORDER = List.of(
-            "Furniture_Crude_Chest_Small",
-            "Bench_Campfire",
-            "Furniture_Crude_Bed",
-            "Furniture_Crude_Torch",
-            "Bench_WorkBench",
-            "Bench_Builders",
-            "Weapon_Sword_Crude",
-            "Tool_Hatchet_Crude",
-            "Tool_Pickaxe_Crude"
-    );
-
-    private static int pocketRecipePriority(CraftingRecipe recipe) {
+    private static int recipeItemLevel(CraftingRecipe recipe) {
         if (recipe == null || recipe.getPrimaryOutput() == null || recipe.getPrimaryOutput().getItemId() == null) {
             return Integer.MAX_VALUE;
         }
-        int index = VANILLA_POCKET_ORDER.indexOf(recipe.getPrimaryOutput().getItemId());
-        return index >= 0 ? index : Integer.MAX_VALUE;
+        var item = Item.getAssetMap().getAsset(recipe.getPrimaryOutput().getItemId());
+        return item != null ? item.getItemLevel() : 0;
+    }
+
+    private static int recipeInputCount(CraftingRecipe recipe) {
+        return recipe != null && recipe.getInput() != null ? recipe.getInput().length : 0;
     }
 
     public static List<CraftingRecipe> pocketRecipes(Collection<CraftingRecipe> recipes, Set<String> knownRecipes) {
@@ -86,7 +78,8 @@ public final class PocketCraftingContent implements InventoryContent {
     static List<CraftingRecipe> pocketRecipes(Collection<CraftingRecipe> recipes, Set<String> knownRecipes, boolean hideUnknown) {
         return recipes.stream().filter(PocketCraftingContent::isPocketRecipe)
                 .filter(recipe -> !hideUnknown || knownRecipe(recipe, knownRecipes))
-                .sorted(Comparator.comparingInt(PocketCraftingContent::pocketRecipePriority)
+                .sorted(Comparator.comparingInt(PocketCraftingContent::recipeItemLevel)
+                        .thenComparingInt(PocketCraftingContent::recipeInputCount)
                         .thenComparing((CraftingRecipe recipe) -> recipe.getPrimaryOutput().getItemId())
                         .thenComparing(CraftingRecipe::getId)).toList();
     }
