@@ -1,0 +1,17 @@
+// Common/ActionButton.ui native key-chip geometry and glyph assets.
+// Explicit display labels show default controls. They do not resolve client
+// remappings or register key activation on a custom page.
+@KeyLabelStyle = LabelStyle(HorizontalAlignment: Center, VerticalAlignment: Center, RenderBold: true, RenderUppercase: true, FontName: "Secondary", TextColor: #ccd8e8, FontSize: 14);
+@MouseLeftClick = PatchStyle(TexturePath: "Textures/InputIconMouseLeftClick.png");
+@MouseRightClick = PatchStyle(TexturePath: "Textures/InputIconMouseRightClick.png");
+@MouseMiddleClick = PatchStyle(TexturePath: "Textures/InputIconMouseMiddleClick.png");
+
+@KeyChip = Group {
+  @Text = "";
+
+  Anchor: (Height: 28, MinWidth: 32);
+  Padding: (Horizontal: 6);
+  LayoutMode: CenterMiddle;
+  Background: (TexturePath: "Textures/InputBinding.png", Border: 6);
+  Label { Text: @Text; Style: @KeyLabelStyle; }
+};

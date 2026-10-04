@@ -1,0 +1,86 @@
+$C = "../Common.ui";
+$G = "InventoryGridStyle.ui";
+$T = "TooltipStyle.ui";
+
+@HotkeyStyle = LabelStyle(FontSize: 12, RenderBold: true, TextColor: #919191, HorizontalAlignment: Center, VerticalAlignment: Center);
+
+// Native StoragePanel padding and slot pitch; the grid measures its own rows.
+$C.@Container #InventoryPanel {
+  @ContentPadding = Padding(Full: 15);
+  FlexWeight: 1;
+  #Title {
+    LayoutMode: Left;
+    Label #InventoryTitle {
+      FlexWeight: 1;
+      Padding: (Horizontal: 19);
+      Style: (FontName: "Secondary", FontSize: 15, RenderBold: true, RenderUppercase: true, TextColor: #b4c8c9, HorizontalAlignment: Start, VerticalAlignment: Center, ShrinkTextToFit: true, MinShrinkTextToFitFontSize: 11, LetterSpacing: 0);
+      Text: %client.inventory.inventory.title;
+    }
+    Label #InventoryStatus {
+      Anchor: (Left: 145, Right: 56, Top: 0, Height: 31);
+      Style: (FontSize: 12, TextColor: #e6be65, HorizontalAlignment: End, VerticalAlignment: Center, ShrinkTextToFit: true);
+      Visible: false;
+    }
+    Button #InventorySortButton {
+      Anchor: (Width: 48, Right: 4);
+      TextTooltipStyle: $T.@ButtonTextTooltipStyle;
+      Style: (Sounds: $C.@ButtonSounds);
+      Group { Anchor: (Width: 24, Height: 24); Background: "Textures/AutoSortIcon.png"; }
+    }
+  }
+  #Content {
+    // Center both grids as one column so keys and active-slot artwork share
+    // the hotbar origin even when the panel has a fractional pixel remainder.
+    Group #InventoryGridCenter {
+      LayoutMode: Center;
+      Group #InventoryGridColumn {
+        Anchor: (Width: 684);
+        LayoutMode: Top;
+        ItemGrid #StorageGrid {
+          Anchor: (Width: 684);
+          SlotsPerRow: 9;
+          InventorySectionId: -2;
+          AreItemsDraggable: true;
+          RenderItemQualityBackground: true;
+          Background: #202c3b(0);
+          Padding: (Left: 2, Top: 2, Right: 0, Bottom: 2);
+          Style: $G.@InventoryGridStyle;
+          ScrollbarStyle: $C.@DefaultScrollbarStyle;
+        }
+        Group #HotbarContainer {
+          Anchor: (Height: 78, Width: 684);
+          ItemGrid #HotbarGrid {
+            Anchor: (Full: 0);
+            SlotsPerRow: 9;
+            InventorySectionId: -1;
+            AreItemsDraggable: true;
+            RenderItemQualityBackground: true;
+            Background: #202c3b(0);
+            Padding: 2;
+            Style: $G.@InventoryGridStyle;
+          }
+          Group #HotbarKeys {
+            Anchor: (Full: 0);
+            HitTestVisible: false;
+            Label { Anchor: (Left: 4, Top: 4, Width: 18, Height: 18); Background: (TexturePath: "Textures/HotKeyBackground.png", Border: 4); Padding: (Horizontal: 5); Style: @HotkeyStyle; Text: "1"; }
+            Label { Anchor: (Left: 80, Top: 4, Width: 18, Height: 18); Background: (TexturePath: "Textures/HotKeyBackground.png", Border: 4); Padding: (Horizontal: 5); Style: @HotkeyStyle; Text: "2"; }
+            Label { Anchor: (Left: 156, Top: 4, Width: 18, Height: 18); Background: (TexturePath: "Textures/HotKeyBackground.png", Border: 4); Padding: (Horizontal: 5); Style: @HotkeyStyle; Text: "3"; }
+            Label { Anchor: (Left: 232, Top: 4, Width: 18, Height: 18); Background: (TexturePath: "Textures/HotKeyBackground.png", Border: 4); Padding: (Horizontal: 5); Style: @HotkeyStyle; Text: "4"; }
+            Label { Anchor: (Left: 308, Top: 4, Width: 18, Height: 18); Background: (TexturePath: "Textures/HotKeyBackground.png", Border: 4); Padding: (Horizontal: 5); Style: @HotkeyStyle; Text: "5"; }
+            Label { Anchor: (Left: 384, Top: 4, Width: 18, Height: 18); Background: (TexturePath: "Textures/HotKeyBackground.png", Border: 4); Padding: (Horizontal: 5); Style: @HotkeyStyle; Text: "6"; }
+            Label { Anchor: (Left: 460, Top: 4, Width: 18, Height: 18); Background: (TexturePath: "Textures/HotKeyBackground.png", Border: 4); Padding: (Horizontal: 5); Style: @HotkeyStyle; Text: "7"; }
+            Label { Anchor: (Left: 536, Top: 4, Width: 18, Height: 18); Background: (TexturePath: "Textures/HotKeyBackground.png", Border: 4); Padding: (Horizontal: 5); Style: @HotkeyStyle; Text: "8"; }
+            Label { Anchor: (Left: 612, Top: 4, Width: 18, Height: 18); Background: (TexturePath: "Textures/HotKeyBackground.png", Border: 4); Padding: (Horizontal: 5); Style: @HotkeyStyle; Text: "9"; }
+          }
+          Group #ActiveHotbarSlot {
+            // Center the native 112px sprite on the 74px slot after 2px padding.
+            Anchor: (Left: -17, Top: -17, Width: 112, Height: 112);
+            Background: "Textures/ActiveSlot.png";
+            HitTestVisible: false;
+            Visible: false;
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,27 @@
+$C = "../Common.ui";
+$T = "TooltipStyle.ui";
+@DefaultStyle = ButtonStyle(Default: (Background: "Textures/CharacterPanelButton.png"), Sounds: $C.@ButtonSounds);
+@ActiveStyle = ButtonStyle(Default: (Background: "Textures/CharacterPanelButtonActive.png"), Sounds: $C.@ButtonSounds);
+
+Group {
+  Anchor: (Width: 70, Height: 70);
+  Button #EntryButton {
+    TextTooltipStyle: $T.@ButtonTextTooltipStyle;
+    Style: @DefaultStyle;
+    Group #ActiveBackground { Anchor: (Full: 0); Background: "Textures/CharacterPanelButtonActive.png"; Visible: false; HitTestVisible: false; }
+    Group #IconInactive { Anchor: (Width: 48, Height: 48); HitTestVisible: false; }
+    Group #IconActive {
+      Anchor: (Width: 48, Height: 48); Visible: false; HitTestVisible: false;
+      Group { Anchor: (Width: 24, Height: 24, Top: 12, Right: -35); Background: "Textures/RightMenuSelectedArrow.png"; }
+    }
+    Group #Badge {
+      LayoutMode: CenterMiddle;
+      Anchor: (Width: 26, Height: 26, Bottom: 2, Right: 2);
+      Background: "Textures/BackpackCountBadge.png";
+      Visible: false; HitTestVisible: false;
+      Label #BadgeCount { Padding: 1; Style: (RenderBold: true, Alignment: Center, TextColor: #ffffffaa, FontName: "Secondary", FontSize: 15, ShrinkTextToFit: true, MinShrinkTextToFitFontSize: 12); }
+    }
+    Group #Lock { Anchor: (Width: 16, Height: 16); Background: "Textures/IconLock.png"; Visible: false; HitTestVisible: false; }
+    Group #Alert { Anchor: (Width: 26, Height: 26, Top: 4, Right: 4); Background: "Textures/QuestMarker.png"; Visible: false; HitTestVisible: false; }
+  }
+}

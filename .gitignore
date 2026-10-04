@@ -1,0 +1,35 @@
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+
+### IntelliJ IDEA ###
+/.idea/
+*.iws
+*.iml
+*.ipr
+/out/
+!**/src/main/**/out/
+
+### Eclipse ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+/bin/
+!**/src/main/**/bin/
+
+### VS Code ###
+/.vscode/
+
+### Mac OS ###
+.DS_Store
+
+### Misc ###
+/run/
+/run-compatibility/
+/standalone-inventory/
+example-extension/build/

@@ -1,0 +1,67 @@
+$C = "../../Common.ui";
+
+@SelectionCorners = Group {
+  @Visible = false;
+  Anchor: (Full: 0); Visible: @Visible;
+  Group { Anchor: (Left: -2, Top: -2, Width: 12, Height: 3); Background: #f4c84f; }
+  Group { Anchor: (Left: -2, Top: -2, Width: 3, Height: 12); Background: #f4c84f; }
+  Group { Anchor: (Right: -2, Top: -2, Width: 12, Height: 3); Background: #f4c84f; }
+  Group { Anchor: (Right: -2, Top: -2, Width: 3, Height: 12); Background: #f4c84f; }
+  Group { Anchor: (Left: -2, Bottom: -2, Width: 12, Height: 3); Background: #f4c84f; }
+  Group { Anchor: (Left: -2, Bottom: -2, Width: 3, Height: 12); Background: #f4c84f; }
+  Group { Anchor: (Right: -2, Bottom: -2, Width: 12, Height: 3); Background: #f4c84f; }
+  Group { Anchor: (Right: -2, Bottom: -2, Width: 3, Height: 12); Background: #f4c84f; }
+};
+
+@RecipeButton = ItemSlotButton {
+  Anchor: (Width: 64, Height: 64, Right: 4);
+  TextTooltipStyle: $C.@DefaultTextTooltipStyle;
+  Style: (
+    Default: (),
+    Hovered: (Background: #ffffff(0.06)),
+    Pressed: (Background: #ffffff(0.11)),
+    Sounds: $C.@ButtonSounds
+  );
+};
+
+@MemoryLock = Group {
+  Anchor: (Full: 0);
+  TextTooltipStyle: $C.@DefaultTextTooltipStyle;
+  LayoutMode: MiddleCenter;
+  Background: #111b24;
+  Visible: false;
+  Group {
+    Anchor: (Width: 38, Height: 38);
+    Background: (TexturePath: "MemoryLocked.png", Color: #9fb9c8(0.6));
+  }
+};
+
+@UnavailableOverlay = Group {
+  Anchor: (Full: 0);
+  Background: #0b151e(0.62);
+  Visible: false;
+};
+
+Group {
+  Anchor: (Height: 66);
+  LayoutMode: Left;
+  @RecipeButton #SelectRecipe0 {
+    ItemSlot #RecipeIcon0 { Anchor: (Full: 0); ShowQualityBackground: true; ShowQuantity: false; }
+    @UnavailableOverlay #Unavailable0 {}
+    @MemoryLock #MemoryLocked0 {}
+    @SelectionCorners #Selected0 {}
+  }
+  @RecipeButton #SelectRecipe1 {
+    ItemSlot #RecipeIcon1 { Anchor: (Full: 0); ShowQualityBackground: true; ShowQuantity: false; }
+    @UnavailableOverlay #Unavailable1 {}
+    @MemoryLock #MemoryLocked1 {}
+    @SelectionCorners #Selected1 {}
+  }
+  @RecipeButton #SelectRecipe2 {
+    Anchor: (Width: 64, Height: 64);
+    ItemSlot #RecipeIcon2 { Anchor: (Full: 0); ShowQualityBackground: true; ShowQuantity: false; }
+    @UnavailableOverlay #Unavailable2 {}
+    @MemoryLock #MemoryLocked2 {}
+    @SelectionCorners #Selected2 {}
+  }
+}

@@ -1,0 +1,16 @@
+$C = "../Common.ui";
+$G = "InventoryGridStyle.ui";
+
+ItemGrid #BackpackGrid {
+  FlexWeight: 1;
+  SlotsPerRow: 9;
+  InventorySectionId: -9;
+  AreItemsDraggable: true;
+  RenderItemQualityBackground: true;
+  Style: $G.@InventoryGridStyle;
+  Background: #202c3b(0);
+  Padding: (Left: 2, Top: 2, Right: 0, Bottom: 2);
+  ScrollbarStyle: $C.@DefaultScrollbarStyle;
+  ShowScrollbar: true;
+  KeepScrollPosition: true;
+}

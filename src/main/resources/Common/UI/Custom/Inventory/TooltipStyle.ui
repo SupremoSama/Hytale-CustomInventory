@@ -1,0 +1,7 @@
+// Native Common.ui ButtonTextTooltipStyle, shared by the inventory controls.
+@ButtonTextTooltipStyle = TextTooltipStyle(
+  Background: (TexturePath: "Textures/ItemTooltipDefault.png", Border: 24),
+  MaxWidth: 400,
+  LabelStyle: (Wrap: true, FontSize: 16),
+  Padding: 24
+);

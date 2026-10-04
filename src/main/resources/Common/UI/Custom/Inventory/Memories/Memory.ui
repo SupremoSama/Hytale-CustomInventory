@@ -1,0 +1,19 @@
+$C = "../../Common.ui";
+
+Group {
+  Padding: (Full: 8);
+  Group #MemoryContent {
+    Anchor: (Width: 140, Height: 140);
+    TextTooltipStyle: $C.@DefaultTextTooltipStyle;
+    Group #TileDefaultBackground { Background: (TexturePath: "Tiles/TileDefault.png", Border: 8); Anchor: (Width: 140, Height: 140); Visible: false; }
+    Group #TileEmptyBackground { Background: (TexturePath: "Tiles/TileEmpty.png", Border: 8); Anchor: (Width: 140, Height: 140); }
+    Group { LayoutMode: Middle;
+      AssetImage #Icon { Anchor: (Width: 128, Height: 128); FallbackTexturePath: "UI/Custom/Pages/Memories/MissingIcon.png"; Visible: false; }
+    }
+    Group #CategoryIconContainer {
+      Background: (TexturePath: "CategoryIconBackground.png", Border: 8);
+      Anchor: (Width: 40, Height: 32, Bottom: 10, Left: 4); Visible: false;
+      AssetImage #CategoryIcon { Anchor: (Width: 32, Height: 32); FallbackTexturePath: "UI/Custom/Pages/Memories/MissingIcon.png"; }
+    }
+  }
+}

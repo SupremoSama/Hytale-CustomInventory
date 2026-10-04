@@ -1,0 +1,12 @@
+{
+  "Group": "SupremoSama",
+  "Name": "CustomInventory",
+  "Version": "0.1.0",
+  "Description": "Independent extensible inventory with experimental native opening interception.",
+  "Authors": [{"Name": "SupremoSama"}],
+  "Main": "com.supremosan.custominventory.CustomInventoryPlugin",
+  "ServerVersion": ">=0.7.0-pre.5.1",
+  "IncludesAssetPack": true,
+  "Dependencies": {},
+  "OptionalDependencies": {}
+}

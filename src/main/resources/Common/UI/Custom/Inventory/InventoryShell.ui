@@ -1,0 +1,58 @@
+$C = "../Common.ui";
+
+@PanelTitleStyle = LabelStyle(FontSize: 15, RenderBold: true, RenderUppercase: true, TextColor: #b4c8c9, FontName: "Secondary", LetterSpacing: 0, HorizontalAlignment: Start, VerticalAlignment: Center, ShrinkTextToFit: true, MinShrinkTextToFitFontSize: 11);
+@MemoriesPanelTitleStyle = LabelStyle(...@PanelTitleStyle, FontName: "Default", LetterSpacing: 0.5);
+@CraftingContentPadding = Padding(Full: 12);
+@BackpackContentPadding = Padding(Full: 15);
+@ScrollableBackpackContentPadding = Padding(Full: 15, Right: 4);
+@MemoriesContentPadding = Padding(Full: 0);
+
+SceneBlur {}
+Group { Background: #000000(0.55); }
+
+// Behind the panels: only drops onto the exposed backdrop reach this empty slot.
+Group #InventoryBackdrop {
+  Anchor: (Full: 0);
+  ItemGrid #InventoryDropZone {
+    Anchor: (Full: 0);
+    SlotsPerRow: 1;
+    AreItemsDraggable: false;
+    RenderItemQualityBackground: false;
+    Padding: 0;
+    Style: (SlotSize: 4096, SlotIconSize: 1, SlotSpacing: 0, SlotBackground: "Utility/Textures/TransparentSlot.png");
+  }
+}
+
+// InventoryPage.ui and InGame/Common.ui: 715 + 410*2 + 38*2.
+Group #InventoryShell {
+  Anchor: (Width: 1611, Top: 0, Bottom: 20);
+  LayoutMode: Left;
+  Group #PlayerPanelHost {
+    Anchor: (Width: 410, Height: 720, Top: 180);
+    LayoutMode: Top;
+  }
+  Group #CenterColumn {
+    Anchor: (Horizontal: 38, Width: 715);
+    LayoutMode: Bottom;
+    $C.@Container #ContentPanel {
+      Anchor: (Height: 423);
+      #Title {
+        LayoutMode: Left;
+        Label #PageTitle { FlexWeight: 1; Padding: (Horizontal: 19); Style: @PanelTitleStyle; }
+        Group #PageHeaderActions { LayoutMode: Left; }
+      }
+      #Content {
+        LayoutMode: Top;
+        Padding: (Full: 12);
+        Group #ContentHost { FlexWeight: 1; LayoutMode: Top; }
+      }
+    }
+    Group #InventoryPanelHost { Anchor: (Height: 452, Top: 8); LayoutMode: Top; }
+  }
+}
+
+Group #ShellActions {
+  Visible: false;
+  TextButton #CloseButton {}
+  TextButton #RefreshButton {}
+}

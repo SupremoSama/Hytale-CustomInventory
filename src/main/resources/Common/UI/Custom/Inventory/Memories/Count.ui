@@ -1,0 +1,4 @@
+Group {
+  Anchor: (Right: 16); LayoutMode: Left;
+  Label #MemoryCount { Style: (FontSize: 15, VerticalAlignment: Center, RenderUppercase: true, TextColor: #b4c8c9, FontName: "Default", RenderBold: true, LetterSpacing: 0.5); Text: "0/0"; }
+}

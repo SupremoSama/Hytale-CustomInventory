@@ -1,0 +1,18 @@
+$C = "../Common.ui";
+$T = "TooltipStyle.ui";
+
+Group {
+  LayoutMode: Left;
+  Button #TakeAllButton { Anchor: (Width: 40, Right: 4); TextTooltipStyle: $T.@ButtonTextTooltipStyle; Style: (Sounds: $C.@ButtonSounds);
+    Group { Anchor: (Width: 24, Height: 24); Background: "Textures/TakeAll.png"; }
+  }
+  Button #PutAllButton { Anchor: (Width: 40); TextTooltipStyle: $T.@ButtonTextTooltipStyle; Style: (Sounds: $C.@ButtonSounds);
+    Group { Anchor: (Width: 24, Height: 24); Background: "Textures/PutAll.png"; }
+  }
+  Button #QuickStackButton { Anchor: (Width: 40, Right: 4); TextTooltipStyle: $T.@ButtonTextTooltipStyle; Style: (Sounds: $C.@ButtonSounds);
+    Group { Anchor: (Width: 24, Height: 24); Background: "Textures/QuickStack.png"; }
+  }
+  Button #BackpackSortButton { Anchor: (Width: 40, Right: 7); TextTooltipStyle: $T.@ButtonTextTooltipStyle; Style: (Sounds: $C.@ButtonSounds);
+    Group { Anchor: (Width: 24, Height: 24); Background: "Textures/AutoSortIcon.png"; }
+  }
+}

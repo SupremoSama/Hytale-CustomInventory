@@ -1,0 +1,181 @@
+$C = "../Common.ui";
+$T = "TooltipStyle.ui";
+$G = "InventoryGridStyle.ui";
+
+// Geometry follows the client's CharacterPanel.ui. Equipment icons and values
+// are supplied by the persistent server inventory controller.
+@SectionLabelStyle = LabelStyle(FontSize: 14, RenderBold: true, RenderUppercase: true, TextColor: #878e9c);
+@StatValueStyle = LabelStyle(FontSize: 14, RenderBold: true, TextColor: #b4c8c9);
+@StatCaptionStyle = LabelStyle(FontSize: 11, RenderBold: false, TextColor: #878e9c);
+
+$C.@DecoratedContainer #PlayerPanel {
+  FlexWeight: 1;
+  #Title {
+    Label #PlayerName {
+      Anchor: (Full: 0);
+      Padding: (Horizontal: 19);
+      Style: (FontName: "Secondary", FontSize: 15, RenderBold: true, RenderUppercase: true, TextColor: #b4c8c9, HorizontalAlignment: Center, VerticalAlignment: Center, ShrinkTextToFit: true, MinShrinkTextToFitFontSize: 11, LetterSpacing: 0);
+      Text: "Player";
+    }
+  }
+  #Content {
+    Group #EquipmentArea {
+      Anchor: (Height: 490, Top: -8);
+      Group {
+        Anchor: (Width: 420, Height: 396, Bottom: -50);
+        Background: "Textures/CharacterBackground.png";
+        HitTestVisible: false;
+      }
+      CharacterPreviewComponent #CharacterPreview {
+        Anchor: (Height: 365, Top: 0, Left: -8, Right: -8);
+        Padding: (Left: 78, Right: 78);
+      }
+      ItemGrid #ArmorGrid {
+        Anchor: (Left: 0, Top: 50, Width: 78, Height: 308);
+        SlotsPerRow: 1;
+        InventorySectionId: -3;
+        AreItemsDraggable: true;
+        RenderItemQualityBackground: true;
+        Background: #202c3b(0);
+        Padding: 2;
+        Style: $G.@InventoryGridStyle;
+      }
+      Button #HelmetVisibility {
+        Anchor: (Left: 54, Top: 46, Width: 32, Height: 32);
+        TextTooltipStyle: $T.@ButtonTextTooltipStyle;
+        Visible: false;
+        Group #Visible { HitTestVisible: false; Anchor: (Full: 0); Background: "Textures/ArmorVisibilityOn.png"; }
+        Group #Hidden { HitTestVisible: false; Anchor: (Full: 0); Background: "Textures/ArmorVisibilityOff.png"; Visible: false; }
+      }
+      Button #CuirassVisibility {
+        Anchor: (Left: 54, Top: 120, Width: 32, Height: 32);
+        TextTooltipStyle: $T.@ButtonTextTooltipStyle;
+        Visible: false;
+        Group #Visible { HitTestVisible: false; Anchor: (Full: 0); Background: "Textures/ArmorVisibilityOn.png"; }
+        Group #Hidden { HitTestVisible: false; Anchor: (Full: 0); Background: "Textures/ArmorVisibilityOff.png"; Visible: false; }
+      }
+      Button #GauntletsVisibility {
+        Anchor: (Left: 54, Top: 194, Width: 32, Height: 32);
+        TextTooltipStyle: $T.@ButtonTextTooltipStyle;
+        Visible: false;
+        Group #Visible { HitTestVisible: false; Anchor: (Full: 0); Background: "Textures/ArmorVisibilityOn.png"; }
+        Group #Hidden { HitTestVisible: false; Anchor: (Full: 0); Background: "Textures/ArmorVisibilityOff.png"; Visible: false; }
+      }
+      Button #PantsVisibility {
+        Anchor: (Left: 54, Top: 268, Width: 32, Height: 32);
+        TextTooltipStyle: $T.@ButtonTextTooltipStyle;
+        Visible: false;
+        Group #Visible { HitTestVisible: false; Anchor: (Full: 0); Background: "Textures/ArmorVisibilityOn.png"; }
+        Group #Hidden { HitTestVisible: false; Anchor: (Full: 0); Background: "Textures/ArmorVisibilityOff.png"; Visible: false; }
+      }
+      // Only the middle utility slot is an inventory index. The two side slots
+      // match the game's temporary decorative artwork.
+      Group #UtilitySection {
+        Anchor: (Full: 0);
+        Group #UtilitySlotCompatibleHighlight {
+          Anchor: (Left: 151, Bottom: -1, Width: 79, Height: 136);
+          Background: "Utility/Textures/SpecialSlotPointer.png";
+          Visible: false;
+          HitTestVisible: false;
+        }
+        Group { Anchor: (Left: 73, Bottom: 2, Width: 74, Height: 74); Background: "Textures/SpecialSlotTemporary.png"; HitTestVisible: false; }
+        Group { Anchor: (Left: 235, Bottom: 2, Width: 74, Height: 74); Background: "Textures/SpecialSlotTemporary.png"; HitTestVisible: false; }
+        ItemGrid #UtilityGrid {
+          Anchor: (Left: 152, Bottom: 0, Width: 76, Height: 78);
+          SlotsPerRow: 1;
+          InventorySectionId: -5;
+          AreItemsDraggable: true;
+          RenderItemQualityBackground: true;
+          Background: #000000(0);
+          Padding: 2;
+          Style: $G.@UtilityGridStyle;
+        }
+        Button #UtilitySlotInputBinding {
+          Anchor: (Left: 174, Bottom: -14, Width: 32, Height: 24);
+          Background: (TexturePath: "Textures/SlotInputBindingBackground.png", Border: 4);
+          Padding: (Top: 1);
+          TooltipText: "Utility items";
+          TextTooltipStyle: $T.@ButtonTextTooltipStyle;
+          Style: (Default: (), Hovered: (), Pressed: ());
+          Label #UtilityBindingLabel {
+            Anchor: (Full: 0);
+            Style: (RenderBold: true, Alignment: Center, TextColor: #ffffe6, FontName: "Secondary", FontSize: 12);
+            Text: "Z";
+            HitTestVisible: false;
+          }
+        }
+      }
+      Group #CharacterTabs {
+        Anchor: (Left: 302, Top: 98, Width: 72, Height: 212);
+        Background: "Textures/SubMenuBackground.png";
+        Group #Navigation { Anchor: (Full: 0); }
+        Group #ExtensionButtons { Anchor: (Full: 0); }
+      }
+    }
+    $C.@SimpleContainer #StatsPanel {
+      Anchor: (Height: 135, Top: 35);
+      Padding: (Horizontal: 10);
+      LayoutMode: Top;
+      Label #StatsTitle { Anchor: (Top: 8); Style: @SectionLabelStyle; Text: %client.inventory.character.stats.stats; }
+      Group {
+        FlexWeight: 1;
+        Anchor: (Top: -5);
+        LayoutMode: Top;
+        Group {
+          Anchor: (Height: 50, Top: 5);
+          LayoutMode: Left;
+          Group { Anchor: (Width: 35, Height: 35); Background: "Textures/CharacterPanelStatIconBackground.png";
+            TooltipText: %client.inventory.character.stats.health;
+            TextTooltipStyle: $T.@ButtonTextTooltipStyle;
+            Group { Background: "Textures/CharacterPanelStatIconHealth.png"; }
+          }
+          Group {
+            Anchor: (Left: 10); LayoutMode: Middle; FlexWeight: 1;
+            Label #HealthLabel { Anchor: (Top: 1); Style: @StatCaptionStyle; Text: %client.inventory.character.stats.health; }
+            Label #StatHealth { Anchor: (Top: -1); Style: @StatValueStyle; Text: "—"; }
+          }
+          Group { Anchor: (Width: 35, Height: 35); Background: "Textures/CharacterPanelStatIconBackground.png";
+            TooltipText: %client.inventory.character.stats.stamina;
+            TextTooltipStyle: $T.@ButtonTextTooltipStyle;
+            Group { Background: "Textures/CharacterPanelStatIconStamina.png"; }
+          }
+          Group {
+            Anchor: (Left: 10); LayoutMode: Middle; FlexWeight: 1;
+            Label #StaminaLabel { Anchor: (Top: 1); Style: @StatCaptionStyle; Text: %client.inventory.character.stats.stamina; }
+            Label #StatStamina { Anchor: (Top: -1); Style: @StatValueStyle; Text: "—"; }
+          }
+        }
+        Group { Anchor: (Height: 2); Background: #c1c9d3(0.07); }
+        Group {
+          Anchor: (Height: 50); LayoutMode: Left;
+          Group { Anchor: (Width: 35, Height: 35); Background: "Textures/CharacterPanelStatIconBackground.png";
+            TooltipText: %client.inventory.character.stats.mana;
+            TextTooltipStyle: $T.@ButtonTextTooltipStyle;
+            Group { Background: "Textures/CharacterPanelStatIconMana.png"; }
+          }
+          Group {
+            Anchor: (Left: 10); LayoutMode: Middle; FlexWeight: 1;
+            Label #ManaLabel { Anchor: (Top: 1); Style: @StatCaptionStyle; Text: %client.inventory.character.stats.mana; }
+            Label #StatMana { Anchor: (Top: -1); Style: @StatValueStyle; Text: "—"; }
+          }
+          Group { Anchor: (Width: 35, Height: 35); Background: "Textures/CharacterPanelStatIconBackground.png";
+            TooltipText: %client.inventory.character.stats.defense;
+            TextTooltipStyle: $T.@ButtonTextTooltipStyle;
+            Group { Background: "Textures/CharacterPanelStatIconArmor.png"; }
+          }
+          Group {
+            Anchor: (Left: 10); LayoutMode: Middle; FlexWeight: 1;
+            Label #DefenseLabel { Anchor: (Top: 1); Style: @StatCaptionStyle; Text: %client.inventory.character.stats.defense; }
+            Label #StatDefense { Anchor: (Top: -1); Style: @StatValueStyle; Text: "—"; }
+          }
+        }
+      }
+    }
+  }
+  // Overlay follows the same content origin, but is outside its Top layout
+  // and drawn after both equipment and stats. Center: utility slot (190, 451).
+  Group #UtilityWheelHost {
+    Anchor: (Left: $C.@FullPaddingValue + 35, Top: $C.@TitleHeight + $C.@FullPaddingValue - 8 + 296, Width: 310, Height: 310);
+    Visible: false;
+  }
+}

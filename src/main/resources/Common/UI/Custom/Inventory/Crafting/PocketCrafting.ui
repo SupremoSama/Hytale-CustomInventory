@@ -1,0 +1,112 @@
+$C = "../../Common.ui";
+$G = "../InventoryGridStyle.ui";
+$T = "../TooltipStyle.ui";
+
+// Mirrors the content of the installed client's BasicCraftingPanel.ui.
+@SlotSelectedBackground = PatchStyle(TexturePath: "Textures/SlotHighlight.png");
+@SlotSelectedOverlay = PatchStyle(TexturePath: "Textures/ItemSlotSelected.png");
+@SlotMemoryLockedItemIcon = PatchStyle(TexturePath: "Textures/SlotIconMemoryLocked.png");
+@SlotUnknownItemIcon = PatchStyle(TexturePath: "Textures/SlotIconUnknownRecipe.png");
+@RecipeGridStyle = ItemGridStyle(...$G.@InventoryGridStyle, SlotSpacing: 4, SlotSize: 72);
+@ButtonLabel = LabelStyle(FontSize: 17, TextColor: #bfcdd5, RenderBold: true, RenderUppercase: true, HorizontalAlignment: Center, ShrinkTextToFit: true, MinShrinkTextToFitFontSize: 12, VerticalAlignment: Center);
+@CraftStyle = TextButtonStyle(
+  Default: (Background: (TexturePath: "Textures/Primary.png", VerticalBorder: 12, HorizontalBorder: 80), LabelStyle: @ButtonLabel),
+  Hovered: (Background: (TexturePath: "Textures/Primary_Hovered.png", VerticalBorder: 12, HorizontalBorder: 80), LabelStyle: @ButtonLabel),
+  Pressed: (Background: (TexturePath: "Textures/Primary_Pressed.png", VerticalBorder: 12, HorizontalBorder: 80), LabelStyle: @ButtonLabel),
+  Disabled: (Background: (TexturePath: "Textures/Disabled.png", VerticalBorder: 12, HorizontalBorder: 80), LabelStyle: (...@ButtonLabel, TextColor: #797b7c)),
+  Sounds: $C.@ButtonSounds
+);
+@SmallCraftStyle = TextButtonStyle(
+  Default: (Background: (TexturePath: "Textures/Secondary.png", Border: 12), LabelStyle: (...@ButtonLabel, FontSize: 14, TextColor: #bdcbd3)),
+  Hovered: (Background: (TexturePath: "Textures/Secondary_Hovered.png", Border: 12), LabelStyle: (...@ButtonLabel, FontSize: 14, TextColor: #bdcbd3)),
+  Pressed: (Background: (TexturePath: "Textures/Secondary_Pressed.png", Border: 12), LabelStyle: (...@ButtonLabel, FontSize: 14, TextColor: #bdcbd3)),
+  Disabled: (Background: (TexturePath: "Textures/Disabled.png", Border: 12), LabelStyle: (...@ButtonLabel, FontSize: 14, TextColor: #797b7c)),
+  Sounds: $C.@ButtonSounds
+);
+
+Group #PocketCrafting {
+  FlexWeight: 1;
+  LayoutMode: Left;
+  ItemGrid #RecipeGrid {
+    Anchor: (Width: 240, Right: 8, Height: 350);
+    SlotsPerRow: 3;
+    AreItemsDraggable: false;
+    RenderItemQualityBackground: true;
+    ScrollbarStyle: $C.@DefaultScrollbarStyle;
+    ShowScrollbar: true;
+    Style: @RecipeGridStyle;
+    Padding: (Left: 5);
+  }
+  Group #RecipeDetails {
+    LayoutMode: Top;
+    FlexWeight: 1;
+    Background: (TexturePath: "Textures/ContainerPanelPatch.png", Border: 4);
+    Group {
+      LayoutMode: Top;
+      Label #RecipeName {
+        Anchor: (Height: 35, Horizontal: 8);
+        Style: (RenderBold: true, RenderUppercase: true, VerticalAlignment: Center, FontSize: 15, TextColor: #cfd6e0, FontName: "Secondary", HorizontalAlignment: Center, ShrinkTextToFit: true, MinShrinkTextToFitFontSize: 11);
+      }
+      Group { Anchor: (Height: 1); Background: #1b2533; }
+    }
+    Group {
+      LayoutMode: Left;
+      FlexWeight: 1;
+      Group #Ingredients {
+        FlexWeight: 1;
+        Anchor: (Right: 8, Height: 315);
+        Padding: 8;
+        LayoutMode: TopScrolling;
+        ScrollbarStyle: $C.@DefaultScrollbarStyle;
+      }
+      Group #ItemInfo {
+        LayoutMode: Top;
+        Anchor: (Width: 221);
+        Group {
+          LayoutMode: Center;
+          Padding: 8;
+          Group {
+            LayoutMode: Top;
+            Group {
+              Anchor: (Height: 187, Bottom: 20, Top: 5);
+              Group { Anchor: (Height: 223, Top: -20); Background: "Textures/EnergeticFlowEffectBlue.png"; }
+              ItemPreviewComponent #RecipePreview { Anchor: (Width: 196); ItemScale: 0.7; }
+              Group #ProgressBarContainer {
+                Anchor: (Height: 4, Bottom: -11);
+                Background: "Textures/ProgressBar.png";
+                ProgressBar #ProgressBar { BarTexturePath: "Textures/ProgressBarFill.png"; EffectTexturePath: "Textures/ProgressBarEffect.png"; EffectWidth: 53; EffectHeight: 30; EffectOffset: 38; }
+              }
+            }
+            TextButton #Craft1Button { Anchor: (Height: 44); Text: %client.inventory.crafting.button.craft1; Style: @CraftStyle; }
+            Group {
+              LayoutMode: Left;
+              Anchor: (Top: 8, Height: 32);
+              TextButton #Craft10Button {
+                FlexWeight: 1;
+                Text: %client.inventory.crafting.button.craft10;
+                TooltipText: %client.inventory.crafting.button.craft10.tooltip;
+                TextTooltipStyle: $T.@ButtonTextTooltipStyle;
+                Style: @SmallCraftStyle;
+              }
+              Group { Anchor: (Width: 5); }
+              TextButton #CraftAllButton {
+                FlexWeight: 1;
+                Text: %client.inventory.crafting.button.craftAll;
+                TooltipText: %client.inventory.crafting.button.craftAll.tooltip;
+                TextTooltipStyle: $T.@ButtonTextTooltipStyle;
+                Style: @SmallCraftStyle;
+              }
+            }
+          }
+        }
+      }
+    }
+    Label #Status { Visible: false; Anchor: (Height: 22); Style: (FontSize: 12, TextColor: #e6be65, HorizontalAlignment: Center, Wrap: true); }
+  }
+  Group #NoRecipes {
+    FlexWeight: 1;
+    LayoutMode: MiddleCenter;
+    Visible: false;
+    Label { Text: "No pocket crafting recipes available"; Style: (FontSize: 14, TextColor: #bdcbd3, Wrap: true); }
+  }
+}

@@ -1,0 +1,31 @@
+$C = "../Common.ui";
+$Sounds = "../Sounds.ui";
+@EmptyArmorHead = PatchStyle(TexturePath: "Textures/ArmorSlotIconHead.png");
+@EmptyArmorChest = PatchStyle(TexturePath: "Textures/ArmorSlotIconChest.png");
+@EmptyArmorHands = PatchStyle(TexturePath: "Textures/ArmorSlotIconHands.png");
+@EmptyArmorLegs = PatchStyle(TexturePath: "Textures/ArmorSlotIconLegs.png");
+
+// Native inventory textures and dimensions, also used by the equipment grids.
+@InventoryGridStyle = ItemGridStyle(
+  SlotSize: 74,
+  SlotIconSize: 64,
+  SlotSpacing: 2,
+  SlotBackground: "Textures/Slot.png",
+  QuantityPopupSlotOverlay: "Textures/QuantityPopupSlotOverlay.png",
+  BrokenSlotBackgroundOverlay: "Textures/SlotItemBrokenCracksOverlay.png",
+  BrokenSlotIconOverlay: "Textures/SlotItemBrokenIconOverlay.png",
+  CooldownOverlay: "Textures/SignatureNotReady.png",
+  DefaultItemIcon: "Textures/UnknownItemIcon.png",
+  DurabilityBar: "Textures/DurabilityBar.png",
+  DurabilityBarBackground: "Textures/DurabilityBarBackground.png",
+  DurabilityBarAnchor: (Bottom: 10, Left: 13, Width: 48, Height: 2),
+  DurabilityBarColorStart: #a63232,
+  DurabilityBarColorEnd: #63b649,
+  EphemeralIconPatch: "Textures/EphemeralSpiral.png",
+  EphemeralIconAnchor: (Bottom: 67, Left: 46, Width: 21, Height: 21),
+  ItemStackHoveredSound: (SoundPath: $Sounds.@ButtonsLightHover, Volume: 6)
+);
+@UtilityGridStyle = ItemGridStyle(
+  ...@InventoryGridStyle,
+  SlotBackground: "Textures/SpecialSlot.png"
+);

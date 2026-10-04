@@ -1,0 +1,16 @@
+$C = "../../Common.ui";
+
+Group #Memories {
+  FlexWeight: 1;
+  LayoutMode: Top;
+  Padding: (Left: 8, Right: 8);
+  Group {
+    FlexWeight: 1;
+    LayoutMode: Left;
+    Padding: (Left: 20, Right: 20, Top: 15, Bottom: 15);
+    Background: (TexturePath: "MemoriesRunes.png", Border: 15);
+    Group { LayoutMode: TopScrolling; ScrollbarStyle: $C.@DefaultScrollbarStyle; FlexWeight: 1;
+      Group #IconList { LayoutMode: LeftCenterWrap; }
+    }
+  }
+}

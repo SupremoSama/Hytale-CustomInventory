@@ -1,0 +1,38 @@
+$C = "../../Common.ui";
+$G = "../InventoryGridStyle.ui";
+@SlotInvalidBackground = PatchStyle(TexturePath: "Textures/IngredientSlot.png", Border: 24);
+@SlotValidBackground = PatchStyle(TexturePath: "Textures/IngredientSlotValid.png", Border: 24);
+// The ingredient patch owns the background. A regular ItemSlot adds the
+// inventory square over it, so use an icon-only grid for native item tooltips.
+@IngredientGridStyle = ItemGridStyle(
+  ...$G.@InventoryGridStyle,
+  SlotSize: 72,
+  SlotIconSize: 64,
+  SlotSpacing: 0,
+  SlotBackground: "../Utility/Textures/TransparentSlot.png"
+);
+
+Group {
+  Anchor: (Height: 72, Left: 0, Bottom: 8);
+  LayoutMode: Left;
+  Group #SlotBackground {
+    Anchor: (Height: 72, Width: 72);
+    ItemGrid #IngredientItem {
+      Anchor: (Full: 0);
+      SlotsPerRow: 1;
+      AreItemsDraggable: false;
+      RenderItemQualityBackground: false;
+      Background: #000000(0);
+      Padding: 0;
+      Style: @IngredientGridStyle;
+    }
+    AssetImage #IngredientResource { Anchor: (Width: 64, Height: 64); Visible: false; }
+  }
+  Group {
+    LayoutMode: Middle;
+    Anchor: (Left: 10);
+    FlexWeight: 1;
+    Label #IngredientName { Style: (Wrap: true, WrapMaxLines: 2, TextColor: #819395, FontSize: 14); }
+    Label #IngredientCount { Anchor: (Height: 20, Top: 4); Style: (TextColor: #819395, FontSize: 15, HorizontalAlignment: Start, VerticalAlignment: Center, RenderBold: false); }
+  }
+}

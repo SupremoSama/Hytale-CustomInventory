@@ -1,0 +1,41 @@
+$C = "../Common.ui";
+$T = "TooltipStyle.ui";
+
+@ShowUnknownRecipesStyle = ButtonStyle(
+  Default: (Background: "Textures/BlockIcon.png"),
+  Pressed: (Background: (TexturePath: "Textures/BlockIcon.png", Color: #ffffff(0.6))),
+  Hovered: (Background: (TexturePath: "Textures/BlockIcon.png", Color: #ffffff(0.8))),
+  Sounds: $C.@ButtonSounds
+);
+@HideUnknownRecipesStyle = ButtonStyle(
+  Default: (Background: "Textures/BlockIconSelected.png"),
+  Hovered: (Background: (TexturePath: "Textures/BlockIconSelected.png", Color: #ffffff(0.8))),
+  Pressed: (Background: (TexturePath: "Textures/BlockIconSelected.png", Color: #ffffff(0.6))),
+  Sounds: $C.@ButtonSounds
+);
+
+Group {
+  LayoutMode: Left;
+  Group {
+    Anchor: (Width: 200);
+    CompactTextField #CraftingSearch {
+      Anchor: (Height: 30, Right: 0);
+      CollapsedWidth: 34;
+      ExpandedWidth: 200;
+      PlaceholderText: %client.general.searchField.placeholder;
+      Style: (FontSize: 16);
+      PlaceholderStyle: (TextColor: #3d5a85, RenderUppercase: true, FontSize: 14);
+      Padding: (Horizontal: 12, Left: 34);
+      Decoration: (Default: (
+        Icon: (Texture: "Textures/SearchIcon.png", Width: 16, Height: 16, Offset: 9),
+        ClearButtonStyle: (Texture: (TexturePath: "Textures/ClearInputIcon.png", Color: #ffffff(0.3)), HoveredTexture: (TexturePath: "Textures/ClearInputIcon.png", Color: #ffffff(0.5)), PressedTexture: (TexturePath: "Textures/ClearInputIcon.png", Color: #ffffff(0.4)), Width: 16, Height: 16, Side: Right, Offset: 10)
+      ));
+    }
+  }
+  Button #ToggleUnknownRecipes {
+    Anchor: (Width: 34, Right: 10);
+    TooltipText: %client.inventory.crafting.options.hideUnknownRecipes;
+    TextTooltipStyle: $T.@ButtonTextTooltipStyle;
+    Style: @HideUnknownRecipesStyle;
+  }
+}

@@ -1,0 +1,91 @@
+$C = "../Common.ui";
+$K = "InputBinding.ui";
+$T = "TooltipStyle.ui";
+
+// InventoryPage.ui action legends and Common/ActionButton.ui glyph layout.
+// These are the default controls shown in the native inventory reference;
+// Labels show default controls. They do not resolve client remappings or activate keyboard events.
+@HelpLabelStyle = LabelStyle(VerticalAlignment: Center, FontSize: 15, RenderBold: true, TextColor: #ffffff(0.8));
+@HelpDisabledLabelStyle = LabelStyle(...@HelpLabelStyle, TextColor: #ffffff(0.4));
+@HelpButtonStyle = ButtonStyle(Sounds: $C.@ButtonSounds);
+
+@HelpHint = Group {
+  @Text = "";
+  @Modifier = "SHIFT";
+  @ShowModifier = false;
+  @MouseIcon = $K.@MouseRightClick;
+  @ShowMouse = true;
+  @Key = "";
+  @ShowKey = false;
+
+  LayoutMode: Left;
+  Anchor: (Width: 280, Height: 28);
+  Label #Name {
+    FlexWeight: 1;
+    Style: (...@HelpDisabledLabelStyle, HorizontalAlignment: End);
+    Text: @Text;
+    Anchor: (Right: 10);
+  }
+  Group #BindingContainer {
+    LayoutMode: Left;
+    Anchor: (Height: 28);
+    $K.@KeyChip #Modifier {
+      @Text = @Modifier;
+      Visible: @ShowModifier;
+      Anchor: (Height: 28, MinWidth: 32, Right: 7);
+    }
+    Group #Binding {
+      Anchor: (Width: 28, Height: 28);
+      Background: @MouseIcon;
+      Visible: @ShowMouse;
+    }
+    $K.@KeyChip #KeyBinding {
+      @Text = @Key;
+      Visible: @ShowKey;
+    }
+  }
+};
+
+Button #InventoryBackButton {
+  Anchor: (Left: 50, Bottom: 50, Width: 110, Height: 28);
+  LayoutMode: Left;
+  Style: @HelpButtonStyle;
+  $K.@KeyChip {
+    @Text = "ESC";
+    HitTestVisible: false;
+  }
+  Label { Text: %client.general.button.back; Style: @HelpLabelStyle; Anchor: (Left: 10); HitTestVisible: false; }
+}
+
+Group #InventoryHelpHints {
+  Anchor: (Right: 50, Bottom: 50, Height: 28);
+  LayoutMode: Right;
+  NavExclude: true;
+  Group {
+    LayoutMode: Bottom;
+    @HelpHint #InventoryHelpPickHalf { @Text = %client.inventory.action.pickHalf; @ShowModifier = true; HitTestVisible: false; }
+    Group { Anchor: (Height: 20); }
+    @HelpHint #InventoryHelpPickOne { @Text = %client.inventory.action.pickOne; HitTestVisible: false; }
+    Group { Anchor: (Height: 20); }
+    @HelpHint #InventoryHelpSmartMove { @Text = %client.inventory.action.smartMove; @ShowModifier = true; @MouseIcon = $K.@MouseLeftClick; HitTestVisible: false; }
+    Group { Anchor: (Height: 20); }
+    Button #InventoryDropButton {
+      Anchor: (Width: 280, Height: 28);
+      LayoutMode: Left;
+      Disabled: true;
+      Style: @HelpButtonStyle;
+      TextTooltipStyle: $T.@ButtonTextTooltipStyle;
+      Label {
+        FlexWeight: 1;
+        Text: %client.inventory.action.drop;
+        Style: (...@HelpLabelStyle, HorizontalAlignment: End);
+        Anchor: (Right: 10);
+        HitTestVisible: false;
+      }
+      $K.@KeyChip #DropKey {
+        @Text = "G";
+        HitTestVisible: false;
+      }
+    }
+  }
+}

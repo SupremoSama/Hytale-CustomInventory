@@ -1,0 +1,94 @@
+$C = "../Common.ui";
+$T = "TooltipStyle.ui";
+$K = "InputBinding.ui";
+
+// GamePageNavigation.ui and GamePageNavigationButton.ui from the installed client.
+@NavigationLabelStyle = LabelStyle(HorizontalAlignment: Center, VerticalAlignment: Center, FontName: "Secondary", RenderBold: true, FontSize: 17, TextColor: #7c8b99, RenderUppercase: true);
+@NavigationSelectedLabelStyle = LabelStyle(...@NavigationLabelStyle, TextColor: #ffffff);
+@NavigationDisabledLabelStyle = LabelStyle(...@NavigationLabelStyle, TextColor: #7c8b99(0.4));
+@NavigationButtonStyle = ButtonStyle(
+  Hovered: (Background: "Textures/NavigationItemHovered.png"),
+  Pressed: (Background: (TexturePath: "Textures/NavigationItemHovered.png", Color: #ffffff(0.8))),
+  Sounds: $C.@ButtonSounds
+);
+@NavigationSelectedButtonStyle = ButtonStyle(
+  ...@NavigationButtonStyle,
+  Default: (Background: "Textures/NavigationItemSelected.png")
+);
+
+@NavigationButton = Button {
+  @Text = "";
+  @Binding = "";
+  @LabelStyle = @NavigationLabelStyle;
+  @ButtonStyle = @NavigationButtonStyle;
+  @Disabled = false;
+
+  Anchor: (Height: 66, Top: 12);
+  LayoutMode: Center;
+  Disabled: @Disabled;
+  Style: @ButtonStyle;
+  TextTooltipStyle: $T.@ButtonTextTooltipStyle;
+  Group {
+    Anchor: (Height: 28, Top: 19);
+    Padding: (Horizontal: 23);
+    LayoutMode: Left;
+    HitTestVisible: false;
+    Label #Name { Style: @LabelStyle; Text: @Text; }
+    // Native ActionButton keeps the 10px gap on its outer container, so it
+    // does not reduce the binding chip's measured minimum width.
+    Group {
+      Anchor: (Left: 10, Height: 28);
+      LayoutMode: Left;
+      $K.@KeyChip #Binding {
+        @Text = @Binding;
+        Anchor: (Height: 28, MinWidth: 32);
+      }
+    }
+  }
+};
+
+Group #InventoryNavigation {
+  Anchor: (Height: 110, Top: 0, Left: -74, Right: -74);
+  Background: (TexturePath: "Textures/NavigationBackground.png", HorizontalBorder: 74, Color: #ffffff(0.95));
+  Padding: (Bottom: 15);
+  Group {
+    Padding: (Horizontal: 74);
+    Group #NavigationButtons {
+      Anchor: (Width: 1611, Height: 85, Top: 0);
+      LayoutMode: Left;
+      @NavigationButton #NavigationInventoryButton {
+        @Text = %client.gamePageNavigation.buttons.Inventory;
+        @Binding = "TAB";
+        @LabelStyle = @NavigationSelectedLabelStyle;
+        @ButtonStyle = @NavigationSelectedButtonStyle;
+        #Name { MaskTexturePath: "Textures/NavigationSelectedLabelGradient.png"; }
+      }
+      @NavigationButton #NavigationMapButton {
+        @Text = %client.gamePageNavigation.buttons.Map;
+        @Binding = "M";
+      }
+      @NavigationButton #NavigationCreativeButton {
+        @Text = %client.gamePageNavigation.buttons.ContentCreation;
+        @Binding = "B";
+        @LabelStyle = @NavigationDisabledLabelStyle;
+        @Disabled = true;
+        TooltipText: %client.gamePageNavigation.buttons.ContentCreation.disabledTooltip;
+      }
+    }
+    Group {
+      LayoutMode: Right;
+      Group {
+        LayoutMode: Left;
+        Anchor: (Height: 85, Top: 0, Right: 40);
+        Group {
+          LayoutMode: Middle;
+          Anchor: (Right: 16);
+          Label { Style: (RenderBold: true, FontSize: 18, TextColor: #ffffff(0.8), RenderUppercase: true, HorizontalAlignment: End); Text: %client.gamePageNavigation.earlyAccess; }
+          // Filled by the page from the running game's manifest version.
+          Label #NavigationVersionLabel { Style: (FontSize: 15, TextColor: #7c8b99, HorizontalAlignment: End); Text: ""; }
+        }
+        Group { Background: "Textures/EarlyAccessSign.png"; Anchor: (Width: 31, Height: 50); }
+      }
+    }
+  }
+}
