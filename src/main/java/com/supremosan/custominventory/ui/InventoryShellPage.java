@@ -158,9 +158,6 @@ public final class InventoryShellPage extends InteractiveCustomUIPage<InventoryS
             var backdropEvents = new InventoryEventBindings(events, "#InventoryBackdrop", INVENTORY_PANELS, pageInstanceId);
             backdropEvents.bind(CustomUIEventBindingType.Dropped, "#InventoryDropZone", "DropOutside", "", false);
             backdropEvents.bind(CustomUIEventBindingType.SlotClickReleaseWhileDragging, "#InventoryDropZone", "DropOutside", "", false);
-            backdropEvents.bind(CustomUIEventBindingType.SlotClickPressWhileDragging, "#InventoryDropZone", "DropOutside", "", false);
-            backdropEvents.bind(CustomUIEventBindingType.SlotClicking, "#InventoryDropZone", "DropOutside", "", false);
-            backdropEvents.bind(CustomUIEventBindingType.KeyDown, "#InventoryDropZone", "DropHovered", "", false);
             playerPanel.build(activeContext, commands,
                     new InventoryEventBindings(events, "#PlayerPanelHost", PLAYER_PANEL, pageInstanceId), "#PlayerPanelHost");
             inventoryPanels.build(activeContext, commands,
@@ -170,9 +167,6 @@ public final class InventoryShellPage extends InteractiveCustomUIPage<InventoryS
             events.addEventBinding(CustomUIEventBindingType.Activating, "#InventoryBackButton", persistentCoreEvent("Close"));
             events.addEventBinding(CustomUIEventBindingType.Activating, "#NavigationMapButton", persistentCoreEvent("Map"));
             events.addEventBinding(CustomUIEventBindingType.Activating, "#RefreshButton", persistentCoreEvent("Refresh"));
-            var hintsBindings = new InventoryEventBindings(events, "#InventoryHelpHints", INVENTORY_PANELS, pageInstanceId);
-            hintsBindings.bind(CustomUIEventBindingType.Activating, "#InventoryDropButton", "DropSelected", "", false);
-            hintsBindings.bind(CustomUIEventBindingType.KeyDown, "#InventoryDropButton", "DropSelected", "", false);
         } else {
             inventoryPanels.refresh(activeContext, commands, "#InventoryShell");
             playerPanel.refresh(activeContext, commands, "#PlayerPanelHost");

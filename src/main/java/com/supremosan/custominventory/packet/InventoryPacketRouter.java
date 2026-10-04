@@ -87,7 +87,7 @@ public final class InventoryPacketRouter<K> implements AutoCloseable {
         var key = new IdentityKey<>(connection);
         if (packet instanceof DropItemStack dropPacket) {
             var state = connections.get(key);
-            if (state != null && state.inventoryPageVisible) {
+            if (state != null && state.inventoryPageVisible && gameModes.get(key) == GameMode.Adventure) {
                 // Do not let a native G request accidentally drop the active hotbar
                 // while the custom inventory displays a different hovered source.
                 return enqueue(connection, key, state, () -> actions.dropHoveredInventoryItem(connection, dropPacket));
