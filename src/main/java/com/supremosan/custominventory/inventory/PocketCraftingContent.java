@@ -101,7 +101,15 @@ public final class PocketCraftingContent implements InventoryContent {
     }
 
     @Override public void build(InventoryContext context, UICommandBuilder commands, InventoryEventBindings bindings, String selector) {
-        commands.append(selector, DOCUMENT);
+        render(context, commands, bindings, selector, true);
+    }
+
+    @Override public void refresh(InventoryContext context, UICommandBuilder commands, InventoryEventBindings bindings, String selector) {
+        render(context, commands, bindings, selector, false);
+    }
+
+    private void render(InventoryContext context, UICommandBuilder commands, InventoryEventBindings bindings, String selector, boolean mount) {
+        if (mount) commands.append(selector, DOCUMENT);
         String root = selector + " #PocketCrafting";
         if (!validContext(context)) return;
         var player = context.store().getComponent(context.ref(), Player.getComponentType());
@@ -140,6 +148,7 @@ public final class PocketCraftingContent implements InventoryContent {
         if (item != null) commands.set(root + " #RecipeName.TextSpans", item.getTranslationMessage());
         else commands.set(root + " #RecipeName.Text", readable(itemId));
         var inputs = selected.getInput();
+        commands.clear(root + " #Ingredients");
         int ingredientIndex = 0;
         if (inputs != null) for (var input : inputs) {
             if (input == null) continue;

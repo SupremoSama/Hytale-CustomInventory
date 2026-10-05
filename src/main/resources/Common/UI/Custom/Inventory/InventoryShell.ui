@@ -13,6 +13,8 @@ Group { Background: #000000(0.55); }
 // Behind the panels: only drops onto the exposed backdrop reach this empty slot.
 Group #InventoryBackdrop {
   Anchor: (Full: 0);
+  // The backdrop is a mouse drop surface, not an inventory navigation section.
+  NavExclude: true;
   ItemGrid #InventoryDropZone {
     Anchor: (Full: 0);
     SlotsPerRow: 1;
@@ -40,14 +42,21 @@ Group #InventoryShell {
         LayoutMode: Left;
         Label #PageTitle { FlexWeight: 1; Padding: (Horizontal: 19); Style: @PanelTitleStyle; }
         Group #PageHeaderActions { LayoutMode: Left; }
+        Group #HeaderExtensions { LayoutMode: Left; }
       }
       #Content {
         LayoutMode: Top;
         Padding: (Full: 12);
         Group #ContentHost { FlexWeight: 1; LayoutMode: Top; }
+        Group #ContentExtensions { Anchor: (Full: 0); }
       }
     }
     Group #InventoryPanelHost { Anchor: (Height: 452, Top: 8); LayoutMode: Top; }
+  }
+  Group #AuxiliaryRegion {
+    Anchor: (Width: 410);
+    Group #AuxiliaryHost { Anchor: (Left: 0, Right: 0, Top: 180); LayoutMode: Top; }
+    Group #AuxiliaryExtensions { Anchor: (Left: 0, Right: 0, Top: 180); }
   }
 }
 

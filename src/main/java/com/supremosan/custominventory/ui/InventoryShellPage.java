@@ -44,6 +44,7 @@ import java.util.Objects;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.LinkedHashMap;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.ScheduledFuture;
@@ -63,6 +64,17 @@ public final class InventoryShellPage extends InteractiveCustomUIPage<InventoryS
     private final NativeInventoryContent inventoryPanels = new NativeInventoryContent();
     private final PlayerInventoryPanel playerPanel = new PlayerInventoryPanel();
     private final InventoryRegistry registry;
+    private final InventoryPageDefinition hostedView;
+    private final InventoryUiExtension viewExtension;
+    private final Map<String, MountedExtension> extensions = new LinkedHashMap<>();
+    private long extensionSequence;
+    private boolean opened;
+    private boolean viewExtensionMounted;
+    private String navigationInstanceId;
+    private java.util.List<InventoryPageDefinition> renderedPages = java.util.List.of();
+    private java.util.List<InventoryButtonDefinition> renderedButtons = java.util.List.of();
+    private record MountedExtension(InventoryRegistry.Entry<InventoryUiExtensionDefinition> registration,
+                                    InventoryUiExtension extension, InventoryContext context, String token) {}
     private final Consumer<InventoryShellPage> dismissedCallback;
     private final AtomicBoolean refreshQueued = new AtomicBoolean();
     private final AtomicBoolean panelRefreshQueued = new AtomicBoolean();
@@ -76,6 +88,7 @@ public final class InventoryShellPage extends InteractiveCustomUIPage<InventoryS
     private volatile InventoryContext activeContext;
     private String pageId = DEFAULT_PAGE;
     private String sessionId;
+    private String hostedContentSessionId;
     private long revision;
     private volatile boolean dismissed;
     private NativeTabState nativeTabState;
@@ -84,15 +97,24 @@ public final class InventoryShellPage extends InteractiveCustomUIPage<InventoryS
 
     public InventoryShellPage(PlayerRef playerRef, InventoryRegistry registry,
                               Consumer<InventoryShellPage> dismissedCallback) {
+        this(playerRef, registry, dismissedCallback, null, null);
+    }
+
+    public InventoryShellPage(PlayerRef playerRef, InventoryRegistry registry,
+                              Consumer<InventoryShellPage> dismissedCallback,
+                              InventoryPageDefinition hostedView, InventoryUiExtension viewExtension) {
         super(playerRef, CustomPageLifetime.CanDismissOrCloseThroughInteraction, Event.CODEC);
         this.registry = Objects.requireNonNull(registry);
         this.dismissedCallback = Objects.requireNonNull(dismissedCallback);
+        this.hostedView = hostedView;
+        this.viewExtension = viewExtension;
+        if (hostedView != null) pageId = hostedView.id();
     }
 
     @Override
     public void build(Ref<EntityStore> ref, UICommandBuilder commands,
                       UIEventBuilder events, Store<EntityStore> store) {
-        activeContext = new InventoryContext(ref, store, playerRef, this::requestRefresh);
+        activeContext = createContext(ref, store);
         render(commands, events, true);
         startPanelRefresh();
     }
@@ -100,7 +122,7 @@ public final class InventoryShellPage extends InteractiveCustomUIPage<InventoryS
     /** Restores this same page when the client has locally opened the native inventory again. */
     public void refocus(Ref<EntityStore> ref, Store<EntityStore> store) {
         if (!canRefocus(ref, store) || !remainInAdventure(ref, store)) return;
-        activeContext = new InventoryContext(ref, store, playerRef, this::requestRefresh);
+        activeContext = createContext(ref, store);
         var commands = new UICommandBuilder();
         var events = new UIEventBuilder();
         try {
@@ -119,24 +141,32 @@ public final class InventoryShellPage extends InteractiveCustomUIPage<InventoryS
     }
 
     private void render(UICommandBuilder commands, UIEventBuilder events, boolean initial) {
-        if (initial) pageInstanceId = UUID.randomUUID().toString();
-        var pages = registry.pagesSnapshot();
+        var pages = hostedView == null ? registry.pagesSnapshot() : java.util.List.<InventoryPageDefinition>of();
         if ((MEMORIES_PAGE.equals(pageId) && memoryCapacity(activeContext) == 0)
                 || (BACKPACK_PAGE.equals(pageId) && backpackCapacity(activeContext) == 0)) pageId = DEFAULT_PAGE;
-        var selectedRegistration = registry.getPageRegistration(pageId);
+        var selectedRegistration = hostedView == null ? registry.getPageRegistration(pageId) : null;
         if (selectedRegistration == null && !pages.isEmpty()) selectedRegistration = registry.getPageRegistration(pages.getFirst().id());
-        var selected = selectedRegistration == null ? null : selectedRegistration.definition();
-        boolean pageChanged = selectedRegistration != activeRegistration;
-        if (selectedRegistration != activeRegistration) {
+        var selected = hostedView != null ? hostedView : selectedRegistration == null ? null : selectedRegistration.definition();
+        boolean pageChanged = selectedRegistration != activeRegistration || selected != activeDefinition;
+        if (pageChanged) {
             dismissContent();
             activeRegistration = selectedRegistration;
             activeDefinition = selected;
+            pageId = selected == null ? null : selected.id();
+            activeContext = createContext(activeContext.ref(), activeContext.store());
             activeContent = selected == null ? null : Objects.requireNonNull(selected.factory().apply(activeContext),
                     "Inventory page factory returned null: " + selected.id());
         }
         pageId = selected == null ? null : selected.id();
         boolean keepBackpackBody = !initial && !pageChanged && activeContent instanceof BackpackInventoryContent;
         sessionId = pageInstanceId + ":" + (++revision);
+        var buttons = hostedView == null ? registry.buttonsSnapshot() : java.util.List.<InventoryButtonDefinition>of();
+        boolean remountNavigation = initial || !pages.equals(renderedPages) || !buttons.equals(renderedButtons)
+                || mountedPages.entrySet().stream().anyMatch(e -> registry.getPageRegistration(e.getKey()) != e.getValue())
+                || mountedButtons.entrySet().stream().anyMatch(e -> registry.getButtonRegistration(e.getKey()) != e.getValue());
+        if (remountNavigation) navigationInstanceId = UUID.randomUUID().toString();
+        renderedPages = pages;
+        renderedButtons = buttons;
         mountedButtons.clear();
         mountedPages.clear();
 
@@ -149,9 +179,11 @@ public final class InventoryShellPage extends InteractiveCustomUIPage<InventoryS
             commands.append("#PlayerPanelHost", "Inventory/PlayerPanel.ui");
             commands.append("#InventoryPanelHost", "Inventory/InventoryPanel.ui");
         } else {
-            if (!keepBackpackBody) commands.clear("#ContentHost");
-            commands.clear("#Navigation");
-            commands.clear("#ExtensionButtons");
+            if (pageChanged) commands.clear("#ContentHost");
+            if (hostedView == null && remountNavigation) {
+                commands.clear("#Navigation");
+                commands.clear("#ExtensionButtons");
+            }
         }
         // These controls remain mounted across extension page changes and inventory updates.
         if (initial) {
@@ -180,38 +212,150 @@ public final class InventoryShellPage extends InteractiveCustomUIPage<InventoryS
             var definition = pages.get(index);
             var registration = registry.getPageRegistration(definition.id());
             if (registration != null && registration.definition() == definition) mountedPages.put(definition.id(), registration);
-            commands.append("#Navigation", "Inventory/NavigationButton.ui");
+            if (remountNavigation) commands.append("#Navigation", "Inventory/NavigationButton.ui");
             String selector = "#Navigation[" + index + "] #EntryButton";
             commands.setObject("#Navigation[" + index + "].Anchor", tabAnchor(index));
             renderTab(commands, selector, definition.id(), definition.title(), definition == selected);
             if (MEMORIES_PAGE.equals(definition.id())) memoriesTabSelector = selector;
             if (BACKPACK_PAGE.equals(definition.id())) backpackTabSelector = selector;
-            events.addEventBinding(CustomUIEventBindingType.Activating, selector, coreEvent("Navigate", definition.id()));
+            if (remountNavigation) events.addEventBinding(CustomUIEventBindingType.Activating, selector, navigationEvent("Navigate", definition.id()));
         }
-        var buttons = registry.buttonsSnapshot();
         for (int index = 0; index < buttons.size(); index++) {
             var definition = buttons.get(index);
             var registration = registry.getButtonRegistration(definition.id());
             if (registration != null && registration.definition() == definition) mountedButtons.put(definition.id(), registration);
-            commands.append("#ExtensionButtons", "Inventory/NavigationButton.ui");
+            if (remountNavigation) commands.append("#ExtensionButtons", "Inventory/NavigationButton.ui");
             String selector = "#ExtensionButtons[" + index + "] #EntryButton";
             commands.setObject("#ExtensionButtons[" + index + "].Anchor", tabAnchor(index + pages.size()));
             renderTab(commands, selector, definition.id(), definition.title(), false);
-            events.addEventBinding(CustomUIEventBindingType.Activating, selector, coreEvent("Button", definition.id()));
+            if (remountNavigation) events.addEventBinding(CustomUIEventBindingType.Activating, selector, navigationEvent("Button", definition.id()));
         }
         applyCharacterTabLayout(commands, pages.size() + buttons.size());
         nativeTabState = readNativeTabState(activeContext);
         writeNativeBadges(commands, nativeTabState);
 
         if (activeContent != null && !keepBackpackBody) {
-            activeContent.build(activeContext, commands,
-                    new InventoryEventBindings(events, "#ContentHost", pageId, sessionId), "#ContentHost");
+            var bindings = new InventoryEventBindings(events, "#ContentHost", pageId, sessionId);
+            if (!initial && !pageChanged) activeContent.refresh(activeContext, commands, bindings, "#ContentHost");
+            else activeContent.build(activeContext, commands, bindings, "#ContentHost");
+            // Mounted forms keep their bindings on presentation-only refreshes.
+            // A content rebuild/rebind gets a new token, invalidating events from removed controls.
+            if (hostedView != null && (initial || pageChanged || bindings.bindingCount() > 0)) hostedContentSessionId = sessionId;
         } else if (activeContent == null) {
             commands.appendInline("#ContentHost", "Label { Text: \"No inventory pages registered.\"; Style: (TextColor: #c9d6df, FontSize: 18); }");
         }
         if (activeContent instanceof BackpackInventoryContent) {
             inventoryPanels.mountBackpack(activeContext, commands,
                     new InventoryEventBindings(events, "#InventoryShell", INVENTORY_PANELS, pageInstanceId), "#InventoryShell", !keepBackpackBody);
+        }
+        renderExtensions(commands, events, initial);
+    }
+
+    private void renderExtensions(UICommandBuilder commands, UIEventBuilder events, boolean initial) {
+        var snapshot = registry.extensionsSnapshot();
+        var iterator = extensions.entrySet().iterator();
+        while (iterator.hasNext()) {
+            var mounted = iterator.next();
+            if (registry.getExtensionRegistration(mounted.getKey()) != mounted.getValue().registration()) {
+                iterator.remove();
+                InventoryUiEditor.removeContribution(commands, mounted.getValue().token());
+                closeExtension(mounted.getValue().extension(), mounted.getValue().context());
+            }
+        }
+        for (var registration : snapshot) {
+            String id = registration.definition().id();
+            var mounted = extensions.get(id);
+            boolean created = mounted == null;
+            if (created) {
+                String token = "E" + (++extensionSequence);
+                var context = extensionContext(registration, token);
+                mounted = new MountedExtension(registration, Objects.requireNonNull(registration.definition().factory().apply(context)),
+                        context, token);
+                extensions.put(id, mounted);
+            }
+            if (initial || created) InventoryUiEditor.mountContribution(commands, mounted.token());
+            try (var editor = new InventoryUiEditor(commands,
+                    new InventoryEventBindings(events, "", "@extension:" + id, pageInstanceId), mounted.token())) {
+                if (initial || created) mounted.extension().onCreated(mounted.context(), editor);
+                mounted.extension().onUpdate(mounted.context(), editor);
+            }
+            if (!opened || created) mounted.extension().onOpened(mounted.context());
+        }
+        if (viewExtension != null) {
+            viewExtensionMounted = true;
+            try (var editor = new InventoryUiEditor(commands,
+                    new InventoryEventBindings(events, "", "@extension:view", pageInstanceId))) {
+                if (initial) viewExtension.onCreated(activeContext, editor);
+                viewExtension.onUpdate(activeContext, editor);
+            }
+            if (!opened) viewExtension.onOpened(activeContext);
+        }
+        opened = true;
+    }
+
+    private void closeExtension(InventoryUiExtension extension, InventoryContext context) {
+        try { extension.onClosed(context); }
+        catch (RuntimeException failure) { LOGGER.atWarning().withCause(failure).log("Inventory extension cleanup failed"); }
+    }
+
+    private InventoryContext extensionContext(InventoryRegistry.Entry<InventoryUiExtensionDefinition> registration, String token) {
+        var context = createContext(activeContext.ref(), activeContext.store(), false);
+        java.util.function.BooleanSupplier registered = () -> registry.getExtensionRegistration(registration.definition().id()) == registration;
+        return new InventoryContext(context.ref(), context.store(), context.playerRef(),
+                () -> { if (registered.getAsBoolean()) context.requestRefresh(); }, context.viewId(),
+                () -> { if (registered.getAsBoolean()) context.requestClose(); },
+                () -> registered.getAsBoolean() && context.isActive(),
+                commands -> {
+                    if (!registered.getAsBoolean()) return;
+                    for (var command : commands.getCommands()) {
+                        if (command.selector == null || java.util.List.of("#ContentExtensions", "#HeaderExtensions", "#NavigationExtensions",
+                                "#ButtonExtensions", "#AuxiliaryExtensions").stream()
+                                .noneMatch(root -> command.selector.startsWith(root + " #CIContribution" + token + " ")))
+                            throw new IllegalArgumentException("Updates must target this registration's contribution elements");
+                    }
+                    context.update(commands);
+                });
+    }
+
+    private InventoryContext createContext(Ref<EntityStore> ref, Store<EntityStore> store) {
+        return createContext(ref, store, true);
+    }
+
+    private InventoryContext createContext(Ref<EntityStore> ref, Store<EntityStore> store, boolean contentScoped) {
+        String generation = pageInstanceId;
+        var contentRegistration = activeRegistration;
+        var contentDefinition = activeDefinition;
+        java.util.function.BooleanSupplier active = () -> !dismissed && generation.equals(pageInstanceId)
+                && (!contentScoped || activeRegistration == contentRegistration && activeDefinition == contentDefinition)
+                && playerRef.getReference() == ref && isActive(ref, store);
+        Runnable close = () -> runOnWorld(store.getExternalData().getWorld(), () -> {
+            if (active.getAsBoolean()) store.getComponent(ref, Player.getComponentType()).getPageManager().setPage(ref, store, Page.None);
+        });
+        return new InventoryContext(ref, store, playerRef, this::requestRefresh,
+                hostedView == null ? DEFAULT_PAGE : hostedView.id(), close, active,
+                commands -> {
+                    var world = store.getExternalData().getWorld();
+                    if (!world.isInThread()) throw new IllegalStateException("Presentation updates require the player's world thread");
+                    if (active.getAsBoolean()) {
+                        validatePresentation(commands);
+                        sendPresentationUpdate(ref, store, commands);
+                    }
+                });
+    }
+
+    private static void runOnWorld(World world, Runnable task) {
+        if (world.isInThread()) task.run();
+        else world.execute(task);
+    }
+
+    private static void validatePresentation(UICommandBuilder commands) {
+        var roots = java.util.List.of("#ContentHost ", "#PageHeaderActions ", "#Navigation ", "#ExtensionButtons ", "#AuxiliaryHost ",
+                "#ContentExtensions ", "#HeaderExtensions ", "#NavigationExtensions ", "#ButtonExtensions ", "#AuxiliaryExtensions ");
+        for (var command : commands.getCommands()) {
+            if (command.selector == null
+                    || roots.stream().noneMatch(command.selector::startsWith)
+                    || command.selector.endsWith(".InventorySectionId") || command.selector.endsWith(".AreItemsDraggable"))
+                throw new IllegalArgumentException("Updates must target owned contribution elements; use lifecycle editors for core controls");
         }
     }
 
@@ -341,7 +485,7 @@ public final class InventoryShellPage extends InteractiveCustomUIPage<InventoryS
     private static NativeTabState readNativeTabState(InventoryContext context) {
         var backpack = InventoryOperations.resolveContainer(context.ref(), context.store(), NativeInventorySection.BACKPACK);
         return new NativeTabState(memoryCapacity(context), memoryCount(context), backpack == null ? 0 : backpack.getCapacity(),
-                backpack == null ? 0 : backpack.countItemStacks(stack -> !ItemStack.isEmpty(stack)));
+                InventorySlotUsage.occupiedSlots(backpack));
     }
     private void writeNativeBadges(UICommandBuilder commands, NativeTabState state) {
         if (memoriesTabSelector != null) {
@@ -355,8 +499,8 @@ public final class InventoryShellPage extends InteractiveCustomUIPage<InventoryS
     }
     private record NativeTabState(int memoryCapacity, int memoryCount, int backpackCapacity, int backpackCount) { }
 
-    private EventData coreEvent(String action, String target) {
-        return new EventData().append("Action", action).append("Target", target).append("SessionId", sessionId);
+    private EventData navigationEvent(String action, String target) {
+        return new EventData().append("Action", action).append("Target", target).append("SessionId", navigationInstanceId);
     }
 
     private EventData persistentCoreEvent(String action) {
@@ -368,8 +512,13 @@ public final class InventoryShellPage extends InteractiveCustomUIPage<InventoryS
         boolean panelEvent = "Content".equals(event.action)
                 && (INVENTORY_PANELS.equals(event.pageId) || PLAYER_PANEL.equals(event.pageId));
         boolean persistentEvent = panelEvent || "Close".equals(event.action) || "Map".equals(event.action) || "Refresh".equals(event.action)
-                || "CraftingHeader".equals(event.action) || "BackpackHeader".equals(event.action);
-        if (dismissed || !acceptsEvent(persistentEvent ? pageInstanceId : sessionId, event.sessionId)
+                || "CraftingHeader".equals(event.action) || "BackpackHeader".equals(event.action)
+                || "Content".equals(event.action) && (hostedView != null || event.pageId != null && event.pageId.startsWith("@extension:"));
+        String expectedSession = "Navigate".equals(event.action) || "Button".equals(event.action)
+                ? navigationInstanceId : persistentEvent ? pageInstanceId : sessionId;
+        if (hostedView != null && "Content".equals(event.action) && hostedView.id().equals(event.pageId))
+            expectedSession = hostedContentSessionId;
+        if (dismissed || !acceptsEvent(expectedSession, event.sessionId)
                 || !isActive(ref, store) || !remainInAdventure(ref, store)) return;
         switch (event.action == null ? "" : event.action) {
             case "Close" -> store.getComponent(ref, Player.getComponentType()).getPageManager().setPage(ref, store, Page.None);
@@ -403,7 +552,22 @@ public final class InventoryShellPage extends InteractiveCustomUIPage<InventoryS
             }
             case "Content" -> {
                 var contentEvent = new InventoryContentEvent(event.contentAction, event.payload, event.slotIndex,
-                        event.dragData(), event.pressedMouseButton != null ? event.pressedMouseButton : event.dragPressedMouseButton);
+                        event.dragData(), event.pressedMouseButton != null ? event.pressedMouseButton : event.dragPressedMouseButton,
+                        event.formValues(), event.shiftHeld);
+                if ("@extension:view".equals(event.pageId) && viewExtension != null) {
+                    viewExtension.handleEvent(activeContext, contentEvent);
+                    requestRefresh();
+                    return;
+                }
+                if (event.pageId != null && event.pageId.startsWith("@extension:")) {
+                    String id = event.pageId.substring("@extension:".length());
+                    var mounted = extensions.get(id);
+                    if (mounted != null && mounted.registration() == registry.getExtensionRegistration(id)) {
+                        mounted.extension().handleEvent(mounted.context(), contentEvent);
+                        requestRefresh();
+                    }
+                    return;
+                }
                 if (INVENTORY_PANELS.equals(event.pageId)) {
                     inventoryPanels.handleEvent(activeContext, contentEvent);
                     if ("HoverSource".equals(event.contentAction) || "UnhoverSource".equals(event.contentAction)) {
@@ -438,7 +602,7 @@ public final class InventoryShellPage extends InteractiveCustomUIPage<InventoryS
                     return;
                 }
                 // A removed/replaced contribution cannot receive old UI events.
-                if (activeContent != null && activeRegistration == registry.getPageRegistration(pageId)
+                if (activeContent != null && (hostedView != null || activeRegistration == registry.getPageRegistration(pageId))
                         && Objects.equals(pageId, event.pageId)) {
                     activeContent.handleEvent(activeContext, contentEvent);
                     requestRefresh();
@@ -505,7 +669,7 @@ public final class InventoryShellPage extends InteractiveCustomUIPage<InventoryS
     /** Called on the owning world thread, after checking this page's ownership. */
     private boolean remainInAdventure(Ref<EntityStore> ref, Store<EntityStore> store) {
         var player = store.getComponent(ref, Player.getComponentType());
-        if (player != null && player.getGameMode() == GameMode.Adventure) return true;
+        if (player != null && (hostedView != null || player.getGameMode() == GameMode.Adventure)) return true;
         if (isActive(ref, store)) player.getPageManager().setPage(ref, store, Page.None);
         return false;
     }
@@ -515,7 +679,10 @@ public final class InventoryShellPage extends InteractiveCustomUIPage<InventoryS
         return !dismissed && isActive(ref, store);
     }
 
+    public boolean isHostedView() { return hostedView != null; }
+
     private void requestRefresh() {
+        if (dismissed) return;
         if (!refreshQueued.compareAndSet(false, true)) return;
         var ref = playerRef.getReference();
         if (ref == null || !ref.isValid()) {
@@ -529,10 +696,10 @@ public final class InventoryShellPage extends InteractiveCustomUIPage<InventoryS
             closeForWorldRemoval(retainedContext.store().getExternalData().getWorld());
             return;
         }
-        store.getExternalData().getWorld().execute(() -> {
+        try { store.getExternalData().getWorld().execute(() -> {
             refreshQueued.set(false);
             if (dismissed || !isActive(ref, store) || !remainInAdventure(ref, store)) return;
-            activeContext = new InventoryContext(ref, store, playerRef, this::requestRefresh);
+            activeContext = createContext(ref, store);
             var commands = new UICommandBuilder();
             var events = new UIEventBuilder();
             try {
@@ -550,8 +717,13 @@ public final class InventoryShellPage extends InteractiveCustomUIPage<InventoryS
                 player.getPageManager().updateLegacyCustomPage(new CustomPage(getClass().getName(),
                         false, false, getLifetime(), commands.getCommands(), events.getEvents()));
             }
-        });
+        }); } catch (RuntimeException worldStopped) {
+            refreshQueued.set(false);
+        }
     }
+
+    /** Thread-safe reconciliation requested by registry registration/unregistration. */
+    public void refreshRegistrations() { requestRefresh(); }
 
     /** Keep the native preview/grids mounted while health, equipment visibility and hotbar selection change. */
     private void startPanelRefresh() {
@@ -619,6 +791,12 @@ public final class InventoryShellPage extends InteractiveCustomUIPage<InventoryS
             try { dismissContent(); }
             finally { inventoryPanels.onDismiss(activeContext); }
         } finally {
+            for (var extension : extensions.values()) closeExtension(extension.extension(), extension.context());
+            extensions.clear();
+            if (viewExtension != null && viewExtensionMounted) closeExtension(viewExtension, activeContext);
+            mountedButtons.clear();
+            mountedPages.clear();
+            activeContext = null;
             dismissedCallback.accept(this);
         }
     }
@@ -630,7 +808,7 @@ public final class InventoryShellPage extends InteractiveCustomUIPage<InventoryS
         if (retainedContext == null) return;
         var store = retainedContext.store();
         var contextRef = retainedContext.ref();
-        store.getExternalData().getWorld().execute(() -> {
+        runOnWorld(store.getExternalData().getWorld(), () -> {
             if (dismissed) return;
             if (ref != null && isActive(ref, store)) {
                 store.getComponent(ref, Player.getComponentType()).getPageManager().setPage(ref, store, Page.None);
@@ -644,8 +822,9 @@ public final class InventoryShellPage extends InteractiveCustomUIPage<InventoryS
     public void closeForWorldRemoval(World world) {
         var retainedContext = activeContext;
         if (retainedContext == null || retainedContext.store().getExternalData().getWorld() != world) return;
-        world.execute(() -> {
-            if (!dismissed && activeContext == retainedContext) onDismiss(retainedContext.ref(), retainedContext.store());
+        runOnWorld(world, () -> {
+            if (!dismissed && activeContext != null && activeContext.store() == retainedContext.store())
+                onDismiss(retainedContext.ref(), retainedContext.store());
         });
     }
 
@@ -682,6 +861,11 @@ public final class InventoryShellPage extends InteractiveCustomUIPage<InventoryS
                 .append(new KeyedCodec<>("ContentAction", Codec.STRING), (d, v) -> d.contentAction = v, d -> d.contentAction).add()
                 .append(new KeyedCodec<>("Payload", Codec.STRING), (d, v) -> d.payload = v, d -> d.payload).add()
                 .append(new KeyedCodec<>(SEARCH_QUERY, Codec.STRING), (d, v) -> d.searchQuery = v, d -> d.searchQuery).add()
+                .append(new KeyedCodec<>("@Text", Codec.STRING), (d, v) -> d.textValue = v, d -> d.textValue).add()
+                .append(new KeyedCodec<>("@Color", Codec.STRING), (d, v) -> d.colorValue = v, d -> d.colorValue).add()
+                .append(new KeyedCodec<>("@Choice", Codec.STRING), (d, v) -> d.choiceValue = v, d -> d.choiceValue).add()
+                .append(new KeyedCodec<>("@Checked", Codec.BOOLEAN), (d, v) -> d.checkedValue = v, d -> d.checkedValue).add()
+                .append(new KeyedCodec<>("ShiftHeld", Codec.BOOLEAN), (d, v) -> d.shiftHeld = v, d -> d.shiftHeld).add()
                 .append(new KeyedCodec<>("SlotIndex", OPTIONAL_INTEGER), (d, v) -> d.slotIndex = v, d -> d.slotIndex).add()
                 .append(new KeyedCodec<>("PressedMouseButton", MOUSE_BUTTON), (d, v) -> d.pressedMouseButton = v, d -> d.pressedMouseButton).add()
                 .append(new KeyedCodec<>("DragPressedMouseButton", MOUSE_BUTTON), (d, v) -> d.dragPressedMouseButton = v, d -> d.dragPressedMouseButton).add()
@@ -701,6 +885,11 @@ public final class InventoryShellPage extends InteractiveCustomUIPage<InventoryS
         public String contentAction;
         public String payload;
         public String searchQuery;
+        public String textValue;
+        public String colorValue;
+        public String choiceValue;
+        public Boolean checkedValue;
+        public Boolean shiftHeld;
         public Integer slotIndex;
         public String pressedMouseButton;
         public String dragPressedMouseButton;
@@ -717,6 +906,15 @@ public final class InventoryShellPage extends InteractiveCustomUIPage<InventoryS
             return new InventoryContentEvent(contentAction,
                     "FilterRecipes".equals(contentAction) && searchQuery != null ? searchQuery : payload,
                     slotIndex, dragData());
+        }
+
+        public Map<String, String> formValues() {
+            var values = new HashMap<String, String>();
+            if (textValue != null) values.put("@Text", textValue);
+            if (colorValue != null) values.put("@Color", colorValue);
+            if (choiceValue != null) values.put("@Choice", choiceValue);
+            if (checkedValue != null) values.put("@Checked", checkedValue.toString());
+            return values;
         }
 
         public InventoryDragData dragData() {

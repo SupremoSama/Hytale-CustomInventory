@@ -62,7 +62,8 @@ public final class InventoryPacketBridge implements AutoCloseable {
             @Override
             public void closeInventory(PlayerRef playerRef) {
                 var context = currentContext(playerRef);
-                if (ownedPage(context) != null) {
+                var page = ownedPage(context);
+                if (page != null && (!page.isHostedView() || context.player().getGameMode() == GameMode.Adventure)) {
                     context.player().getPageManager().setPage(context.ref(), context.store(), Page.None);
                 }
             }

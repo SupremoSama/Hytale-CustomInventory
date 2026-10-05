@@ -12,6 +12,9 @@ public final class InventoryEventBindings {
     private final String hostSelector;
     private final String pageId;
     private final String sessionId;
+    private int bindingCount;
+
+    public int bindingCount() { return bindingCount; }
 
     public InventoryEventBindings(UIEventBuilder events, String hostSelector, String pageId, String sessionId) {
         this.events = Objects.requireNonNull(events);
@@ -23,6 +26,26 @@ public final class InventoryEventBindings {
     public void bind(CustomUIEventBindingType type, String relativeSelector,
                      String action, String payload, boolean locksInterface) {
         events.addEventBinding(type, selector(relativeSelector), data(action, payload), locksInterface);
+        bindingCount++;
+    }
+
+    /** Adapts a contribution's local Action/Target envelope and generic form values. */
+    public void addEventBinding(CustomUIEventBindingType type, String relativeSelector, EventData local) {
+        addEventBinding(type, relativeSelector, local, true);
+    }
+
+    public void addEventBinding(CustomUIEventBindingType type, String relativeSelector, EventData local, boolean locksInterface) {
+        var scoped = data(Objects.requireNonNull(local.events().get("Action"), "Action"), local.events().get("Target"));
+        for (var entry : local.events().entrySet()) {
+            if (entry.getKey().equals("Action") || entry.getKey().equals("Target")) continue;
+            if (!java.util.Set.of("@Text", "@Color", "@Choice", "@Checked").contains(entry.getKey()))
+                throw new IllegalArgumentException("Unsupported bound form value: " + entry.getKey());
+            String value = entry.getValue();
+            if (value.startsWith("#") && !hostSelector.isBlank()) value = hostSelector.strip() + " " + value;
+            scoped.append(entry.getKey(), value);
+        }
+        events.addEventBinding(type, selector(relativeSelector), scoped, locksInterface);
+        bindingCount++;
     }
 
     public String selector(String relativeSelector) {

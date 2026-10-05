@@ -15,6 +15,8 @@ import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.supremosan.custominventory.api.InventoryPageDefinition;
 import com.supremosan.custominventory.api.InventoryRegistry;
+import com.supremosan.custominventory.api.InventoryUiExtension;
+import com.hypixel.hytale.server.core.entity.entities.player.windows.Window;
 import com.supremosan.custominventory.command.CustomInventoryCommand;
 import com.supremosan.custominventory.inventory.PocketCraftingContent;
 import com.supremosan.custominventory.inventory.InventoryOperations;
@@ -33,6 +35,7 @@ public final class CustomInventoryPlugin extends JavaPlugin {
     private final Set<InventoryShellPage> sessions = ConcurrentHashMap.newKeySet();
     private final InventoryPacketBridge packetBridge = new InventoryPacketBridge(this::open);
     private volatile boolean running;
+    private InventoryRegistry.Registration registryListener;
 
     public CustomInventoryPlugin(JavaPluginInit init) { super(init); }
 
@@ -44,10 +47,36 @@ public final class CustomInventoryPlugin extends JavaPlugin {
 
     public InventoryRegistry getInventoryRegistry() { return registry; }
 
+    /** Open a session-local view with shared inventory/input; attach native bench windows if supplied. */
+    public boolean openView(Ref<EntityStore> ref, Store<EntityStore> store, PlayerRef playerRef,
+                            InventoryPageDefinition view, InventoryUiExtension extension, Window... windows) {
+        if (!running) throw new IllegalStateException("CustomInventory is not running");
+        if (!store.getExternalData().getWorld().isInThread()) throw new IllegalStateException("Inventory views require the player's world thread");
+        if (!ref.isValid() || ref.getStore() != store || playerRef.getReference() != ref
+                || InventoryOperations.locked(ref, store)) return false;
+        var player = store.getComponent(ref, Player.getComponentType());
+        if (player == null) return false;
+        var page = new InventoryShellPage(playerRef, registry, sessions::remove, java.util.Objects.requireNonNull(view), extension);
+        sessions.add(page);
+        try {
+            if (windows.length == 0) {
+                player.getPageManager().openCustomPage(ref, store, page);
+                return true;
+            }
+            if (player.getPageManager().openCustomPageWithWindows(ref, store, page, windows)) return true;
+            page.onDismiss(ref, store);
+            return false;
+        } catch (RuntimeException | Error failure) {
+            page.onDismiss(ref, store);
+            throw failure;
+        }
+    }
+
     @Override
     protected void setup() {
         instance = this;
         running = true;
+        registryListener = registry.onChange(() -> { for (var page : sessions) page.refreshRegistrations(); });
         registry.registerInventoryPage(new InventoryPageDefinition(InventoryShellPage.DEFAULT_PAGE,
                 "Crafting", 0, context -> new PocketCraftingContent()));
         registry.registerInventoryPage(new InventoryPageDefinition(InventoryShellPage.MEMORIES_PAGE,
@@ -124,6 +153,7 @@ public final class CustomInventoryPlugin extends JavaPlugin {
     @Override
     protected void shutdown() {
         running = false;
+        if (registryListener != null) { registryListener.close(); registryListener = null; }
         packetBridge.close();
         for (var page : sessions) page.closeForShutdown();
         sessions.clear();

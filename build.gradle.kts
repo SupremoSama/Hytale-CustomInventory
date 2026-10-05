@@ -7,7 +7,7 @@ plugins {
 }
 
 group = "com.supremosan"
-version = "0.1.0"
+version = "0.2.0"
 
 // Use an installed official server binary. No shared-source build or modification is needed.
 val installedServer = providers.gradleProperty("hytaleServerJar")
@@ -20,7 +20,7 @@ val engineFiles = files(installedServer)
 allprojects {
     apply(plugin = "java")
     group = "com.supremosan"
-    version = "0.1.0"
+    version = "0.2.0"
     extensions.configure<JavaPluginExtension> {
         toolchain.languageVersion.set(JavaLanguageVersion.of(25))
         withSourcesJar()
@@ -35,6 +35,20 @@ findProject(":example-extension")?.run {
     dependencies { add("compileOnly", rootProject) }
     tasks.named<Jar>("jar") { archiveBaseName.set("CustomInventoryExample") }
 }
+
+dependencies { testImplementation(engineFiles) }
+
+val regressionTest = tasks.register<JavaExec>("regressionTest") {
+    group = "verification"
+    description = "Checks inventory capacity, extension ownership, scoped UI edits and stale event rejection."
+    dependsOn(tasks.testClasses)
+    classpath = sourceSets.test.get().runtimeClasspath
+    mainClass.set("com.supremosan.custominventory.RegressionSuite")
+    javaLauncher.set(javaToolchains.launcherFor(java.toolchain))
+}
+tasks.check { dependsOn(regressionTest) }
+// Verification uses the dependency-free main above, rather than a JUnit test engine.
+tasks.test { failOnNoDiscoveredTests = false }
 
 val assetsZip = providers.gradleProperty("hytaleAssetsZip")
     .orElse(providers.environmentVariable("HYTALE_ASSETS_ZIP"))

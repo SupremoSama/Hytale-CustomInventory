@@ -110,6 +110,8 @@ $C.@DecoratedContainer #PlayerPanel {
         Background: "Textures/SubMenuBackground.png";
         Group #Navigation { Anchor: (Full: 0); }
         Group #ExtensionButtons { Anchor: (Full: 0); }
+        Group #NavigationExtensions { Anchor: (Full: 0); }
+        Group #ButtonExtensions { Anchor: (Full: 0); }
       }
     }
     $C.@SimpleContainer #StatsPanel {

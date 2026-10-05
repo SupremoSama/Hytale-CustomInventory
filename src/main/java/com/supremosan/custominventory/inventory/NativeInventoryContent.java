@@ -38,6 +38,8 @@ public final class NativeInventoryContent implements InventoryContent {
     private final Map<ItemContainer, EventRegistration<Void, ItemContainer.ItemContainerChangeEvent>> listeners = new IdentityHashMap<>();
     private InventorySelection selection;
     private InventorySelection dragOrigin;
+    private boolean shiftSourceGesture;
+    private final Set<NativeInventorySection> releasedSources = java.util.EnumSet.noneOf(NativeInventorySection.class);
     private int dragGridId;
     private record DragKey(int grid, int slot) { }
     private record PendingRemoval(InventorySelection origin, int quantity, long submittedAt) { }
@@ -59,6 +61,8 @@ public final class NativeInventoryContent implements InventoryContent {
                       InventoryEventBindings events, String selector) {
         selection = null;
         dragOrigin = null;
+        shiftSourceGesture = false;
+        releasedSources.clear();
         hoveredSelection = null;
         dragOrigins.clear();
         activeHotbarSlot = Integer.MIN_VALUE;
@@ -76,6 +80,7 @@ public final class NativeInventoryContent implements InventoryContent {
                         InventoryEventBindings events, String selector) {
         Set<ItemContainer> current = Collections.newSetFromMap(new IdentityHashMap<>());
         for (var section : PERSISTENT_SECTIONS) {
+            boolean sourceReleased = releasedSources.remove(section);
             ItemContainer container = InventoryOperations.resolveContainer(context.ref(), context.store(), section);
             var previous = displayed.get(section);
             boolean containerChanged = container != displayedContainers.get(section);
@@ -91,14 +96,14 @@ public final class NativeInventoryContent implements InventoryContent {
                 }
                 snapshot[slot] = InventorySelection.snapshot(stack);
             }
-            boolean slotsChanged = events != null || containerChanged || !Arrays.equals(previous, snapshot);
+            boolean slotsChanged = events != null || sourceReleased || containerChanged || !Arrays.equals(previous, snapshot);
             boolean centerChanged = slotsChanged;
             displayed.put(section, snapshot);
             if (section == NativeInventorySection.UTILITY) {
                 var utility = context.store().getComponent(context.ref(), InventoryComponent.Utility.getComponentType());
                 int previousActiveSlot = displayedUtilitySlot;
                 displayedUtilitySlot = UtilitySlotProjection.activeIndex(capacity, utility == null ? -1 : utility.getActiveSlot());
-                centerChanged = events != null || containerChanged || previousActiveSlot != displayedUtilitySlot
+                centerChanged = events != null || sourceReleased || containerChanged || previousActiveSlot != displayedUtilitySlot
                         || !java.util.Objects.equals(itemAt(previous, previousActiveSlot), itemAt(snapshot, displayedUtilitySlot));
                 slots = UtilitySlotProjection.slots(snapshot, displayedUtilitySlot);
                 if (events != null) {
@@ -109,7 +114,7 @@ public final class NativeInventoryContent implements InventoryContent {
                 for (int index = 0; index < UtilitySlotSelector.DISPLAYED_SLOTS; index++) {
                     if (events != null) commands.set(selector + " #PlayerPanelHost #UtilityChoiceGrid" + index + ".InventorySectionId",
                             UtilitySlotProjection.wheelGridId(index));
-                    if (events != null || containerChanged || !java.util.Objects.equals(itemAt(previous, index), itemAt(snapshot, index))) {
+                    if (events != null || sourceReleased || containerChanged || !java.util.Objects.equals(itemAt(previous, index), itemAt(snapshot, index))) {
                         var choice = new ItemGridSlot[]{InventoryDisplay.slot(itemAt(snapshot, index))};
                         commands.set(selector + " #PlayerPanelHost #UtilityChoiceGrid" + index + ".Slots", choice);
                         var stack = itemAt(snapshot, index);
@@ -135,6 +140,7 @@ public final class NativeInventoryContent implements InventoryContent {
                 commands.set(selector + " " + grid + ".Slots", slots);
             if (events != null) {
                 events.bind(CustomUIEventBindingType.SlotClicking, grid, "DragSource", section.name(), false);
+                events.bind(CustomUIEventBindingType.SlotClickReleaseWhileDragging, grid, "CompleteSourceRelease", section.name(), false);
                 events.bind(CustomUIEventBindingType.Dropped, grid, "Drop", section.name(), false);
                 events.bind(CustomUIEventBindingType.DragCancelled, grid, "CancelDrag", "", false);
                 if (section != NativeInventorySection.UTILITY) {
@@ -166,6 +172,7 @@ public final class NativeInventoryContent implements InventoryContent {
     public void mountBackpack(InventoryContext context, UICommandBuilder commands, InventoryEventBindings events,
                               String selector, boolean bindEvents) {
         var section = NativeInventorySection.BACKPACK;
+        boolean sourceReleased = releasedSources.remove(section);
         var container = InventoryOperations.resolveContainer(context.ref(), context.store(), section);
         var previous = displayed.get(section);
         boolean containerChanged = container != displayedContainers.get(section);
@@ -183,10 +190,11 @@ public final class NativeInventoryContent implements InventoryContent {
             listeners.computeIfAbsent(container, c -> c.registerChangeEvent(change -> context.requestRefresh()));
         } else displayedContainers.remove(section);
         String grid = grid(section);
-        if (bindEvents || containerChanged || !Arrays.equals(previous, snapshot))
+        if (bindEvents || sourceReleased || containerChanged || !Arrays.equals(previous, snapshot))
             commands.set(selector + " " + grid + ".Slots", slots);
         if (bindEvents) {
             events.bind(CustomUIEventBindingType.SlotClicking, grid, "DragSource", section.name(), false);
+            events.bind(CustomUIEventBindingType.SlotClickReleaseWhileDragging, grid, "CompleteSourceRelease", section.name(), false);
             events.bind(CustomUIEventBindingType.Dropped, grid, "Drop", section.name(), false);
             events.bind(CustomUIEventBindingType.DragCancelled, grid, "CancelDrag", "", false);
             events.bind(CustomUIEventBindingType.SlotMouseEntered, grid, "HoverSource", section.name(), false);
@@ -198,7 +206,11 @@ public final class NativeInventoryContent implements InventoryContent {
         displayed.remove(NativeInventorySection.BACKPACK);
         displayedContainers.remove(NativeInventorySection.BACKPACK);
         if (selection != null && selection.section() == NativeInventorySection.BACKPACK) selection = null;
-        if (dragOrigin != null && dragOrigin.section() == NativeInventorySection.BACKPACK) dragOrigin = null;
+        if (dragOrigin != null && dragOrigin.section() == NativeInventorySection.BACKPACK) {
+            dragOrigin = null;
+            shiftSourceGesture = false;
+        }
+        releasedSources.remove(NativeInventorySection.BACKPACK);
         dragOrigins.entrySet().removeIf(entry -> entry.getValue().section() == NativeInventorySection.BACKPACK);
         pendingRemovals.entrySet().removeIf(entry -> entry.getValue().origin().section() == NativeInventorySection.BACKPACK);
         if (hoveredSelection != null && hoveredSelection.section() == NativeInventorySection.BACKPACK) hoveredSelection = null;
@@ -258,13 +270,19 @@ public final class NativeInventoryContent implements InventoryContent {
         if ("CancelDrag".equals(event.action())) {
             selection = null;
             dragOrigin = null;
+            shiftSourceGesture = false;
             // Hiding a wheel source can emit this while the client still holds its stack.
             // Keep its keyed snapshot, but do not use it as the next gesture's default.
+            return;
+        }
+        if ("CompleteSourceRelease".equals(event.action()) || "CompleteUtilitySourceRelease".equals(event.action())) {
+            completeSourceRelease(event);
             return;
         }
         if (InventoryOperations.locked(context.ref(), context.store())) {
             selection = null;
             dragOrigin = null;
+            shiftSourceGesture = false;
             status = "Inventory access is currently locked.";
             return;
         }
@@ -313,6 +331,7 @@ public final class NativeInventoryContent implements InventoryContent {
             status = result == InventoryOperations.Result.SUBMITTED ? "" : "The selected item cannot be dropped.";
             selection = null;
             dragOrigin = null;
+            shiftSourceGesture = false;
             hoveredSelection = null;
             dropButtonSelection = null;
             dragOrigins.clear();
@@ -326,6 +345,7 @@ public final class NativeInventoryContent implements InventoryContent {
             }
             selection = null;
             dragOrigin = null;
+            shiftSourceGesture = false;
             dragOrigins.clear();
             pendingRemovals.clear();
             InventoryUtils.sortStorage(context.ref(), context.store());
@@ -373,6 +393,7 @@ public final class NativeInventoryContent implements InventoryContent {
                 selection = captured;
                 dragOrigin = captured;
                 dragGridId = sourceGrid;
+                shiftSourceGesture = Boolean.TRUE.equals(event.shiftHeld()) && !event.rightMouseButton();
             }
             // Leave the mounted grids/cursor untouched until Drop or DragCancelled.
             return;
@@ -481,9 +502,43 @@ public final class NativeInventoryContent implements InventoryContent {
         } finally {
             selection = null;
             dragOrigin = null;
+            shiftSourceGesture = false;
             dragOrigins.clear();
             hoveredSelection = null;
         }
+    }
+
+    /**
+     * A stationary shift gesture has no destination-enter/drop callback. Complete
+     * it on the native ItemGrid mouse-release event, and re-deliver the source's
+     * authoritative slots so its detached client drag is reconciled immediately.
+     * Releases over other slots remain owned by ItemGrid's normal Dropped event.
+     */
+    private void completeSourceRelease(InventoryContentEvent event) {
+        var origin = dragOrigin;
+        if (origin == null) return;
+        boolean wheel = "CompleteUtilitySourceRelease".equals(event.action());
+        var section = wheel ? NativeInventorySection.UTILITY : NativeInventorySection.parse(event.payload());
+        var slots = section == null ? null : displayed.get(section);
+        if (slots == null) return;
+        Integer slot = wheel ? UtilitySlotProjection.wheelIndex(event.payload(), event.slotIndex(), slots.length)
+                : section == NativeInventorySection.UTILITY
+                ? UtilitySlotProjection.sourceIndex(event.slotIndex(), displayedUtilitySlot, slots.length, origin) : event.slotIndex();
+        if (!completesShiftSourceRelease(shiftSourceGesture, event.shiftHeld(), event.rightMouseButton(),
+                origin.section() == section && slot != null && origin.slot() == slot)) return;
+        releasedSources.add(section);
+        selection = null;
+        dragOrigin = null;
+        shiftSourceGesture = false;
+        dragOrigins.clear();
+        hoveredSelection = null;
+        dropButtonSelection = null;
+    }
+
+    /** Classifies only the terminal mouse gesture; it never submits an item move. */
+    static boolean completesShiftSourceRelease(boolean shiftAtPress, Boolean shiftAtRelease,
+                                               boolean rightButton, boolean sameSourceSlot) {
+        return !rightButton && sameSourceSlot && (shiftAtPress || Boolean.TRUE.equals(shiftAtRelease));
     }
 
     /** Drops only the stack currently carried by the client onto the full-screen dimmed backdrop. */
@@ -580,6 +635,7 @@ public final class NativeInventoryContent implements InventoryContent {
         };
         selection = null;
         dragOrigin = null;
+        shiftSourceGesture = false;
         hoveredSelection = null;
     }
 
@@ -697,6 +753,8 @@ public final class NativeInventoryContent implements InventoryContent {
         displayedContainers.clear();
         selection = null;
         dragOrigin = null;
+        shiftSourceGesture = false;
+        releasedSources.clear();
         dragOrigins.clear();
         pendingRemovals.clear();
         hoveredSelection = null;

@@ -51,6 +51,9 @@ public final class UtilitySlotSelector {
 
     /** Hover and explicit selection use the player-panel event scope. */
     static void bindEvents(InventoryEventBindings events) {
+        // Native button activation includes controller confirmation; opening the
+        // selector must not depend on a mouse-enter event.
+        events.bind(CustomUIEventBindingType.Activating, "#UtilitySlotInputBinding", OPEN, "", false);
         events.bind(CustomUIEventBindingType.SlotMouseEntered, "#UtilityGrid", OPEN, "", false);
         events.bind(CustomUIEventBindingType.MouseEntered, "#UtilitySlotInputBinding", OPEN, "", false);
         events.bind(CustomUIEventBindingType.MouseExited, "#UtilityWheel", CLOSE, "", false);
@@ -72,11 +75,13 @@ public final class UtilitySlotSelector {
             String grid = "#PlayerPanelHost #UtilityChoiceGrid" + index;
             String slot = Integer.toString(index);
             events.bind(CustomUIEventBindingType.SlotClicking, grid, "UtilityWheelDragSource", slot, false);
+            events.bind(CustomUIEventBindingType.SlotClickReleaseWhileDragging, grid, "CompleteUtilitySourceRelease", slot, false);
             events.bind(CustomUIEventBindingType.Dropped, grid, "UtilityWheelDrop", slot, false);
             events.bind(CustomUIEventBindingType.DragCancelled, grid, "CancelDrag", "", false);
         }
         String center = "#PlayerPanelHost #UtilityWheelCenterGrid";
         events.bind(CustomUIEventBindingType.SlotClicking, center, "DragSource", "UTILITY", false);
+        events.bind(CustomUIEventBindingType.SlotClickReleaseWhileDragging, center, "CompleteSourceRelease", "UTILITY", false);
         events.bind(CustomUIEventBindingType.Dropped, center, "Drop", "UTILITY", false);
         events.bind(CustomUIEventBindingType.DragCancelled, center, "CancelDrag", "", false);
     }

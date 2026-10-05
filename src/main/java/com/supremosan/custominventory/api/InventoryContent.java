@@ -10,6 +10,13 @@ public interface InventoryContent {
 
     void handleEvent(InventoryContext context, InventoryContentEvent event);
 
+    /** Default rebuild; override to preserve mounted forms, selection and controller focus. */
+    default void refresh(InventoryContext context, UICommandBuilder commands,
+                         InventoryEventBindings bindings, String selector) {
+        commands.clear(selector);
+        build(context, commands, bindings, selector);
+    }
+
     /** Called on navigation, close, or plugin shutdown; release listeners and timers here. */
     default void onDismiss(InventoryContext context) {}
 }

@@ -23,6 +23,7 @@ $C.@Container #InventoryPanel {
     }
     Button #InventorySortButton {
       Anchor: (Width: 48, Right: 4);
+      NavOrder: 1;
       TextTooltipStyle: $T.@ButtonTextTooltipStyle;
       Style: (Sounds: $C.@ButtonSounds);
       Group { Anchor: (Width: 24, Height: 24); Background: "Textures/AutoSortIcon.png"; }
