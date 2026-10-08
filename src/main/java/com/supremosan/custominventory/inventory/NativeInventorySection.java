@@ -8,7 +8,8 @@ public enum NativeInventorySection {
     HOTBAR(InventoryComponent.HOTBAR_SECTION_ID, "HotbarGrid"),
     ARMOR(InventoryComponent.ARMOR_SECTION_ID, "ArmorGrid"),
     UTILITY(InventoryComponent.UTILITY_SECTION_ID, "UtilityGrid"),
-    BACKPACK(InventoryComponent.BACKPACK_SECTION_ID, "BackpackGrid");
+    BACKPACK(InventoryComponent.BACKPACK_SECTION_ID, "BackpackGrid"),
+    EXTRA(com.supremosan.custominventory.api.ExtraEquipment.SECTION_ID, "ExtraEquipmentGrid");
 
     private final int id;
     private final String gridId;

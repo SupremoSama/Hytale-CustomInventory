@@ -34,6 +34,7 @@ public final class InventoryPacketRouter<K> implements AutoCloseable {
             "#InventoryShell #InventoryPanelHost #StorageGrid.Slots",
             "#InventoryShell #InventoryPanelHost #HotbarGrid.Slots",
             "#InventoryShell #PlayerPanelHost #ArmorGrid.Slots",
+            "#InventoryShell #ExtraEquipmentHost #ExtraEquipmentGrid.Slots",
             "#InventoryShell #PlayerPanelHost #UtilityGrid.Slots",
             "#InventoryShell #PlayerPanelHost #UtilityWheelCenterGrid.Slots",
             "#InventoryShell #PlayerPanelHost #UtilityChoiceGrid0.Slots",

@@ -75,6 +75,11 @@ public final class CustomInventoryPlugin extends JavaPlugin {
     @Override
     protected void setup() {
         instance = this;
+        com.supremosan.custominventory.api.ExtraEquipment.TYPE = getEntityStoreRegistry().registerComponent(
+                com.supremosan.custominventory.api.ExtraEquipment.class, "CustomInventory_ExtraEquipment",
+                com.supremosan.custominventory.api.ExtraEquipment.CODEC);
+        getEntityStoreRegistry().registerSystem(new com.supremosan.custominventory.api.ExtraEquipment.Changes());
+        getEntityStoreRegistry().registerSystem(new com.supremosan.custominventory.inventory.ExtraEquipmentDeathSystem());
         running = true;
         registryListener = registry.onChange(() -> { for (var page : sessions) page.refreshRegistrations(); });
         registry.registerInventoryPage(new InventoryPageDefinition(InventoryShellPage.DEFAULT_PAGE,
@@ -118,6 +123,7 @@ public final class CustomInventoryPlugin extends JavaPlugin {
         Runnable seed = () -> {
             if (!running || !ref.isValid() || ref.getStore() != store) return;
             var playerRef = store.getComponent(ref, PlayerRef.getComponentType());
+            com.supremosan.custominventory.api.ExtraEquipment.ensure(ref, store);
             if (playerRef != null && playerRef.getReference() == ref) packetBridge.synchronizeGameMode(playerRef);
         };
         if (world.isInThread()) seed.run();

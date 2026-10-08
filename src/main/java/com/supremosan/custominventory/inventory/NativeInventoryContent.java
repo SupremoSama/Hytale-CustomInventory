@@ -36,7 +36,7 @@ import java.util.concurrent.TimeUnit;
 public final class NativeInventoryContent implements InventoryContent {
     private static final List<NativeInventorySection> PERSISTENT_SECTIONS = List.of(
             NativeInventorySection.STORAGE, NativeInventorySection.HOTBAR,
-            NativeInventorySection.ARMOR, NativeInventorySection.UTILITY);
+            NativeInventorySection.ARMOR, NativeInventorySection.UTILITY, NativeInventorySection.EXTRA);
     private final InventoryRegistry registry;
     @FunctionalInterface
     interface MoveRequest {
@@ -159,6 +159,10 @@ public final class NativeInventoryContent implements InventoryContent {
                         : null;
                 currentDescriptions[slot] = desc;
                 slots[slot] = InventoryDisplay.slot(stack, desc);
+                if (section == NativeInventorySection.EXTRA && ItemStack.isEmpty(stack)) {
+                    String icon = switch (slot) { case 0 -> "Hat"; case 1 -> "Backpack"; case 2 -> "Collar"; default -> "Belt"; };
+                    slots[slot].setIcon(Value.ref("Inventory/ExtraEquipment.ui", "Empty" + icon));
+                }
                 if (section == NativeInventorySection.ARMOR && ItemStack.isEmpty(stack) && slot < 4) {
                     String icon = switch (slot) { case 0 -> "Head"; case 1 -> "Chest"; case 2 -> "Hands"; default -> "Legs"; };
                     slots[slot].setIcon(Value.ref("Inventory/InventoryGridStyle.ui", "EmptyArmor" + icon));
@@ -1003,6 +1007,17 @@ public final class NativeInventoryContent implements InventoryContent {
 
     /** Native shift-click destination rules, shared by shift-release and shift-drag. */
     private void quickMove(InventoryContext context, NativeInventorySection section, Integer slot) {
+        if (section == NativeInventorySection.EXTRA) {
+            var source = displayedContainers.get(section);
+            var storage = InventoryOperations.resolveContainer(context.ref(), context.store(), NativeInventorySection.STORAGE);
+            if (slot != null && InventoryOperations.validSlot(source, slot) && storage != null) {
+                source.moveItemStackFromSlot(slot.shortValue(), storage);
+                releasedSources.add(section);
+                releasedSources.add(NativeInventorySection.STORAGE);
+                context.requestRefresh();
+            }
+            return;
+        }
         ItemContainer bpContainer = displayedContainers.get(NativeInventorySection.BACKPACK);
         boolean backpackOpen = bpContainer != null;
         if (backpackOpen) {
@@ -1363,6 +1378,7 @@ public final class NativeInventoryContent implements InventoryContent {
         String panel = switch (section) {
             case STORAGE, HOTBAR -> "#InventoryPanelHost";
             case ARMOR, UTILITY -> "#PlayerPanelHost";
+            case EXTRA -> "#ExtraEquipmentHost";
             case BACKPACK -> "#ContentHost";
         };
         return panel + " #" + section.gridId();

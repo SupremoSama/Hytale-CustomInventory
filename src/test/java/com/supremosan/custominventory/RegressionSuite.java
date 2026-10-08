@@ -42,9 +42,37 @@ public final class RegressionSuite {
         eventEnvelopesStayWithinTheirSession();
         rebuiltPagesRejectOldEvents();
         utilityWheelSlicesFollowNativeGeometry();
+        extraEquipmentFiltersAndCopies();
         assertions += NativeGestureRegression.verify();
         assertions += InventoryLifecycleRegression.verify();
         System.out.println("CustomInventory regression checks passed (" + assertions + " assertions).");
+    }
+
+    private static void extraEquipmentFiltersAndCopies() {
+        ExtraEquipment.registerItems(ExtraEquipment.HAT, item -> item.getItemId().equals("TestHat"));
+        ExtraEquipment.registerItems(ExtraEquipment.BACKPACK, item -> item.getItemId().equals("TestPack"));
+        var equipment = new ExtraEquipment();
+        var source = new SimpleItemContainer((short) 2);
+        source.setItemStackForSlot((short) 0, stack("TestHat", 1));
+        equal(false, source.moveItemStackFromSlotToSlot((short) 0, 1, equipment.getInventory(), ExtraEquipment.BACKPACK).succeeded(),
+                "hat cannot occupy backpack slot");
+        equal("TestHat", source.getItemStack((short) 0).getItemId(), "rejected equipment move preserves source");
+        equal(true, source.moveItemStackFromSlotToSlot((short) 0, 1, equipment.getInventory(), ExtraEquipment.HAT).succeeded(),
+                "hat equips in dedicated slot");
+        equal(false, ExtraEquipment.accepts(ExtraEquipment.HAT, stack("TestHat", 2)), "equipment is limited to one item");
+        equal(false, ExtraEquipment.accepts(ExtraEquipment.COLLAR, stack("TestHat", 1)), "unregistered collar type is rejected");
+        equipment.markLegacyTrueBackpackMigrated();
+        var loaded = ExtraEquipment.CODEC.decode(ExtraEquipment.CODEC.encode(equipment));
+        equal("TestHat", loaded.getInventory().getItemStack(ExtraEquipment.HAT).getItemId(), "equipment survives codec round trip");
+        equal(true, loaded.isLegacyTrueBackpackMigrated(), "migration only runs once across saves");
+        equal(false, loaded.getInventory().setItemStackForSlot(ExtraEquipment.BELT, stack("TestHat", 1)).succeeded(),
+                "slot filters are restored after decoding");
+        var copy = equipment.clone();
+        equal(true, copy.isLegacyTrueBackpackMigrated(), "migration marker survives cloning");
+        equipment.getInventory().removeItemStackFromSlot(ExtraEquipment.HAT);
+        equal("TestHat", copy.getInventory().getItemStack(ExtraEquipment.HAT).getItemId(), "saved equipment clone has independent contents");
+        equal(true, copy.getInventory().moveItemStackFromSlotToSlot(ExtraEquipment.HAT, 1, source, (short) 1).succeeded(),
+                "equipment can be returned to normal storage");
     }
 
     private static void utilityWheelSlicesFollowNativeGeometry() {

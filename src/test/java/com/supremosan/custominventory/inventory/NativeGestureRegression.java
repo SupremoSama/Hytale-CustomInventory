@@ -33,6 +33,7 @@ public final class NativeGestureRegression {
                 "protocol mouse button X1 with enum value three is not treated as Right");
         exerciseRelease(NativeInventorySection.STORAGE, false, true, "Left", 1, true);
         exerciseRelease(NativeInventorySection.STORAGE, false, false, "Left", 1, false);
+        exerciseRelease(NativeInventorySection.EXTRA, false, false, "Left", 0, false);
         exerciseRelease(NativeInventorySection.STORAGE, false, true, "Right", 1, false);
         exerciseRelease(NativeInventorySection.STORAGE, false, true, "Left", 2, false);
         exerciseRelease(NativeInventorySection.UTILITY, true, true, "Left", 0, true);

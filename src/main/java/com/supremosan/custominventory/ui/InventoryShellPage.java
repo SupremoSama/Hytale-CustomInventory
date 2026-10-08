@@ -191,7 +191,8 @@ public final class InventoryShellPage extends InteractiveCustomUIPage<InventoryS
             var backdropEvents = new InventoryEventBindings(events, "#InventoryBackdrop", INVENTORY_PANELS, pageInstanceId);
             backdropEvents.bind(CustomUIEventBindingType.Dropped, "#InventoryDropZone", "DropOutside", "", false);
             playerPanel.build(activeContext, commands,
-                    new InventoryEventBindings(events, "#PlayerPanelHost", PLAYER_PANEL, pageInstanceId), "#PlayerPanelHost");
+                    new InventoryEventBindings(events, "#PlayerPanelHost", PLAYER_PANEL, pageInstanceId),
+                    new InventoryEventBindings(events, "#ExtraEquipmentHost", PLAYER_PANEL, pageInstanceId), "#PlayerPanelHost");
             inventoryPanels.build(activeContext, commands,
                     new InventoryEventBindings(events, "#InventoryShell", INVENTORY_PANELS, pageInstanceId), "#InventoryShell");
             events.addEventBinding(CustomUIEventBindingType.Activating, "#CloseButton", persistentCoreEvent("Close"));

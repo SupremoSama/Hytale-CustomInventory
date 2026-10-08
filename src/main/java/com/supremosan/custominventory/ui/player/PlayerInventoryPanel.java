@@ -31,10 +31,14 @@ public final class PlayerInventoryPanel {
     private final UtilitySlotSelector utilitySelector = new UtilitySlotSelector();
     private Snapshot snapshot;
     private String snapshotHost;
+    private boolean equipmentVisible = true;
 
     /** The event bindings must be scoped to hostSelector, for example #PlayerPanelHost. */
     public void build(InventoryContext context, UICommandBuilder commands,
-                      InventoryEventBindings events, String hostSelector) {
+                      InventoryEventBindings events, InventoryEventBindings equipmentEvents, String hostSelector) {
+        com.supremosan.custominventory.api.ExtraEquipment.ensure(context.ref(), context.store());
+        commands.append("#ExtraEquipmentHost", "Inventory/ExtraEquipment.ui");
+        equipmentEvents.bind(CustomUIEventBindingType.Activating, "#ExtraEquipmentToggle", "ToggleExtraEquipment", "", false);
         for (var slot : ArmorVisibilityPreferences.Slot.values()) {
             events.bind(CustomUIEventBindingType.Activating, slot.selector(), TOGGLE_ARMOR_VISIBILITY, slot.name(), true);
         }
@@ -47,6 +51,8 @@ public final class PlayerInventoryPanel {
 
     /** Refresh only values/eye state without remounting the character preview or equipment grids. */
     public void refresh(InventoryContext context, UICommandBuilder commands, String hostSelector) {
+        commands.set("#ExtraEquipmentPanel.Visible", equipmentVisible);
+        commands.set("#ExtraEquipmentToggle.Text", equipmentVisible ? "<" : ">");
         utilitySelector.refresh(context, commands, hostSelector);
         var next = readSnapshot(context);
         if (Objects.equals(snapshotHost, hostSelector) && next.equals(snapshot)) return;
@@ -62,6 +68,11 @@ public final class PlayerInventoryPanel {
 
     /** @return true for recognized armor-eye actions, including stale/denied requests. */
     public boolean handleEvent(InventoryContext context, InventoryContentEvent event) {
+        if ("ToggleExtraEquipment".equals(event.action())) {
+            equipmentVisible = !equipmentVisible;
+            context.requestRefresh();
+            return true;
+        }
         if (utilitySelector.handleEvent(context, event)) return true;
         if (!TOGGLE_ARMOR_VISIBILITY.equals(event.action())) return false;
         toggleArmorVisibility(context, ArmorVisibilityPreferences.Slot.parse(event.payload()));

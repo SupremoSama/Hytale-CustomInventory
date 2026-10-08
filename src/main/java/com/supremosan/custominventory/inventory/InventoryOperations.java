@@ -25,6 +25,10 @@ public final class InventoryOperations {
                                                 NativeInventorySection section) {
         if (ref == null || !ref.isValid() || store == null || section == null) return null;
         try {
+            if (section == NativeInventorySection.EXTRA) {
+                var equipment = store.getComponent(ref, com.supremosan.custominventory.api.ExtraEquipment.TYPE);
+                return equipment == null ? null : equipment.getInventory();
+            }
             return InventoryUtils.getSectionById(ref, section.id(), store);
         } catch (Throwable ignored) {
             return null;
@@ -87,6 +91,10 @@ public final class InventoryOperations {
         if (target == null && selection != null && selection.section() == targetSection) target = selection.container();
         Result result = validate(selection, source, target, targetSlot, quantity, false);
         if (result != Result.SUBMITTED) return result;
+        if (selection.section() == NativeInventorySection.EXTRA || targetSection == NativeInventorySection.EXTRA) {
+            source.moveItemStackFromSlotToSlot((short) selection.slot(), quantity, target, (short) targetSlot);
+            return Result.SUBMITTED;
+        }
 
         // Native filters, stack rules, ability consistency, active-hotbar interactions, save/change
         // events and synchronization remain the engine's responsibility. The engine may defer or
@@ -103,6 +111,22 @@ public final class InventoryOperations {
         ItemContainer source = selection == null ? null : resolveContainer(ref, store, selection.section());
         Result validation = validateSource(selection, source, quantity);
         if (validation != Result.SUBMITTED) return validation;
+        if (selection.section() == NativeInventorySection.EXTRA) {
+            var event = new com.hypixel.hytale.server.core.event.events.ecs.DropItemEvent.PlayerRequest(
+                    selection.section().id(), (short) selection.slot());
+            event.setCancelled(com.hypixel.hytale.server.core.modules.entity.gamemode.GameModeTypes.preventsItemDrops(ref, store));
+            store.invoke(ref, event);
+            if (event.isCancelled() || event.getInventorySectionId() != selection.section().id()
+                    || event.getSlotId() != selection.slot()) return Result.DENIED;
+            var transaction = source.removeItemStackFromSlot((short) selection.slot(), quantity);
+            var item = transaction.getOutput();
+            if (ItemStack.isEmpty(item)) return Result.DENIED;
+            if (com.hypixel.hytale.server.core.entity.ItemUtils.dropItem(ref, item, store) == null) {
+                source.setItemStackForSlot((short) selection.slot(), item);
+                return Result.DROP_FAILED;
+            }
+            return Result.SUBMITTED;
+        }
 
         var playerRef = store.getComponent(ref, PlayerRef.getComponentType());
         if (playerRef == null || playerRef.getReference() != ref
