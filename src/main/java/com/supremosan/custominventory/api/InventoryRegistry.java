@@ -15,6 +15,7 @@ public final class InventoryRegistry {
     private final ConcurrentMap<String, Entry<InventoryPageDefinition>> pages = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, Entry<InventoryButtonDefinition>> buttons = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, Entry<InventoryUiExtensionDefinition>> extensions = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, Entry<InventoryItemTooltipDefinition>> itemTooltips = new ConcurrentHashMap<>();
     private final CopyOnWriteArrayList<Runnable> changes = new CopyOnWriteArrayList<>();
 
     /** Notify hosts to reconcile registrations on their owning thread. */
@@ -84,6 +85,35 @@ public final class InventoryRegistry {
                 .thenComparing(entry -> entry.definition.id())).toList();
     }
 
+    /** Registers a description source for native item grids, without altering server item metadata. */
+    public Registration registerItemTooltip(InventoryItemTooltipDefinition definition) {
+        Objects.requireNonNull(definition, "definition");
+        var entry = new Entry<>(definition);
+        if (itemTooltips.putIfAbsent(definition.id(), entry) != null)
+            throw new IllegalArgumentException("Inventory item tooltip already registered: " + definition.id());
+        var closed = new AtomicBoolean();
+        changed();
+        return () -> { if (closed.compareAndSet(false, true) && itemTooltips.remove(definition.id(), entry)) changed(); };
+    }
+
+    /** First non-null description wins in ascending order, then identifier order. */
+    public String itemTooltip(InventoryItemTooltipContext context) {
+        Objects.requireNonNull(context, "context");
+        var providers = itemTooltips.values().stream().sorted(Comparator
+                .comparingInt((Entry<InventoryItemTooltipDefinition> entry) -> entry.definition.order())
+                .thenComparing(entry -> entry.definition.id())).toList();
+        for (var entry : providers) {
+            try {
+                String description = entry.definition.provider().describe(context);
+                if (description != null) return description;
+            } catch (RuntimeException failure) {
+                com.hypixel.hytale.logger.HytaleLogger.forEnclosingClass().atWarning().withCause(failure)
+                        .log("Inventory item tooltip provider failed: %s", entry.definition.id());
+            }
+        }
+        return null;
+    }
+
     public Entry<InventoryUiExtensionDefinition> getExtensionRegistration(String id) {
         return id == null ? null : extensions.get(id);
     }
@@ -115,6 +145,7 @@ public final class InventoryRegistry {
         pages.clear();
         buttons.clear();
         extensions.clear();
+        itemTooltips.clear();
         changed();
     }
 

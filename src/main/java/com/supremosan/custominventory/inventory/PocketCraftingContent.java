@@ -138,7 +138,7 @@ public final class PocketCraftingContent implements InventoryContent {
                     recipe.getId().equals(selectedRecipeId));
         }
         commands.set(root + " #RecipeGrid.Slots", slots);
-        bindings.bind(CustomUIEventBindingType.SlotClicking, "#PocketCrafting #RecipeGrid", "SelectRecipe", "", true);
+        if (mount) bindings.bind(CustomUIEventBindingType.SlotClicking, "#PocketCrafting #RecipeGrid", "SelectRecipe", "", true);
         commands.set(root + " #RecipeDetails.Visible", selected != null);
         commands.set(root + " #NoRecipes.Visible", selected == null);
         if (selected == null) return;
@@ -181,8 +181,10 @@ public final class PocketCraftingContent implements InventoryContent {
         commands.set(root + " #Craft10Button.Disabled", !backendReady || limit < 10);
         commands.set(root + " #CraftAllButton.Disabled", !backendReady || limit < 1);
         commands.set(root + " #ProgressBar.Value", 0f); // Pocket crafting completes instantly in the engine.
-        for (String quantity : List.of("1", "10", "All")) bindings.bind(CustomUIEventBindingType.Activating,
-                "#PocketCrafting #Craft" + quantity + "Button", "Craft" + quantity, selected.getId(), true);
+        if (mount) {
+            for (String quantity : List.of("1", "10", "All")) bindings.bind(CustomUIEventBindingType.Activating,
+                    "#PocketCrafting #Craft" + quantity + "Button", "Craft" + quantity, "", true);
+        }
         commands.set(root + " #Status.Text", status);
         commands.set(root + " #Status.Visible", !status.isBlank());
     }
@@ -217,6 +219,8 @@ public final class PocketCraftingContent implements InventoryContent {
         if ("SelectRecipe".equals(event.action()) && event.slotIndex() != null) {
             if (event.slotIndex() < 0 || event.slotIndex() >= displayedRecipeIds.size()) return;
             recipeId = displayedRecipeIds.get(event.slotIndex());
+        } else if (recipeId == null || recipeId.isEmpty()) {
+            recipeId = selectedRecipeId;
         }
         var displayed = displayedRecipes.get(recipeId);
         var recipe = displayed == null ? null : CraftingRecipe.getAssetMap().getAsset(recipeId);

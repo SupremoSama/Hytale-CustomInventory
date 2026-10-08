@@ -75,15 +75,22 @@ public final class UtilitySlotSelector {
             String grid = "#PlayerPanelHost #UtilityChoiceGrid" + index;
             String slot = Integer.toString(index);
             events.bind(CustomUIEventBindingType.SlotClicking, grid, "UtilityWheelDragSource", slot, false);
+            events.bind(CustomUIEventBindingType.SlotClickPressWhileDragging, grid, "UtilityWheelDragPress", slot, false);
             events.bind(CustomUIEventBindingType.SlotClickReleaseWhileDragging, grid, "CompleteUtilitySourceRelease", slot, false);
             events.bind(CustomUIEventBindingType.Dropped, grid, "UtilityWheelDrop", slot, false);
             events.bind(CustomUIEventBindingType.DragCancelled, grid, "CancelDrag", "", false);
+            events.bind(CustomUIEventBindingType.SlotMouseEntered, grid, "UtilityWheelHover", slot, false);
+            events.bind(CustomUIEventBindingType.SlotMouseExited, grid, "UtilityWheelUnhover", slot, false);
         }
         String center = "#PlayerPanelHost #UtilityWheelCenterGrid";
         events.bind(CustomUIEventBindingType.SlotClicking, center, "DragSource", "UTILITY", false);
+        events.bind(CustomUIEventBindingType.SlotClickPressWhileDragging, center, "DragPress", "UTILITY", false);
         events.bind(CustomUIEventBindingType.SlotClickReleaseWhileDragging, center, "CompleteSourceRelease", "UTILITY", false);
         events.bind(CustomUIEventBindingType.Dropped, center, "Drop", "UTILITY", false);
+        events.bind(CustomUIEventBindingType.SlotDoubleClicking, center, "DoubleClickSlot", "UTILITY", false);
         events.bind(CustomUIEventBindingType.DragCancelled, center, "CancelDrag", "", false);
+        events.bind(CustomUIEventBindingType.SlotMouseEntered, center, "HoverSource", "UTILITY", false);
+        events.bind(CustomUIEventBindingType.SlotMouseExited, center, "UnhoverSource", "UTILITY", false);
     }
 
     public void refresh(InventoryContext context, UICommandBuilder commands, String host) {

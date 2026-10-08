@@ -88,26 +88,27 @@ Button #UtilityWheel {
     HitTestVisible: false;
   }
   Group #UtilityWheelOverlay { Anchor: (Full: 0); Background: "Textures/ItemSlotSelectorBackground.png"; HitTestVisible: false; }
-  // Native choices run counterclockwise from the upper-left, leaving the
-  // bottom slice for unequip. Each wedge uses the client's own artwork.
-  Group #UtilitySelected0 { Anchor: (Full: 0); Background: "Textures/ItemSlotSelectorSelected3.png"; Visible: false; HitTestVisible: false; }
-  Group #UtilitySelected1 { Anchor: (Full: 0); Background: "Textures/ItemSlotSelectorSelected2.png"; Visible: false; HitTestVisible: false; }
-  Group #UtilitySelected2 { Anchor: (Full: 0); Background: "Textures/ItemSlotSelectorSelected1.png"; Visible: false; HitTestVisible: false; }
-  Group #UtilitySelected3 { Anchor: (Full: 0); Background: "Textures/ItemSlotSelectorSelected0.png"; Visible: false; HitTestVisible: false; }
+  // Native choices run clockwise starting from Bottom-Left, leaving the
+  // bottom slice for unequip:
+  // Slot 0 = Bottom-Left, Slot 1 = Top-Left, Slot 2 = Top-Right, Slot 3 = Bottom-Right.
+  Group #UtilitySelected0 { Anchor: (Full: 0); Background: "Textures/ItemSlotSelectorSelected2.png"; Visible: false; HitTestVisible: false; }
+  Group #UtilitySelected1 { Anchor: (Full: 0); Background: "Textures/ItemSlotSelectorSelected3.png"; Visible: false; HitTestVisible: false; }
+  Group #UtilitySelected2 { Anchor: (Full: 0); Background: "Textures/ItemSlotSelectorSelected0.png"; Visible: false; HitTestVisible: false; }
+  Group #UtilitySelected3 { Anchor: (Full: 0); Background: "Textures/ItemSlotSelectorSelected1.png"; Visible: false; HitTestVisible: false; }
   Group #UtilitySelectedClear { Anchor: (Full: 0); Background: "Textures/ItemSlotSelectorSelectedClear.png"; Visible: false; HitTestVisible: false; }
-  Group #UtilityHovered0 { Anchor: (Full: 0); Background: "Textures/ItemSlotSelectorHovered0.png"; Visible: false; HitTestVisible: false; }
-  Group #UtilityHovered1 { Anchor: (Full: 0); Background: "Textures/ItemSlotSelectorHovered1.png"; Visible: false; HitTestVisible: false; }
-  Group #UtilityHovered2 { Anchor: (Full: 0); Background: "Textures/ItemSlotSelectorHovered2.png"; Visible: false; HitTestVisible: false; }
-  Group #UtilityHovered3 { Anchor: (Full: 0); Background: "Textures/ItemSlotSelectorHovered3.png"; Visible: false; HitTestVisible: false; }
+  Group #UtilityHovered0 { Anchor: (Full: 0); Background: "Textures/ItemSlotSelectorHovered1.png"; Visible: false; HitTestVisible: false; }
+  Group #UtilityHovered1 { Anchor: (Full: 0); Background: "Textures/ItemSlotSelectorHovered0.png"; Visible: false; HitTestVisible: false; }
+  Group #UtilityHovered2 { Anchor: (Full: 0); Background: "Textures/ItemSlotSelectorHovered3.png"; Visible: false; HitTestVisible: false; }
+  Group #UtilityHovered3 { Anchor: (Full: 0); Background: "Textures/ItemSlotSelectorHovered2.png"; Visible: false; HitTestVisible: false; }
   Group #UtilityHoveredClear { Anchor: (Full: 0); Background: "Textures/ItemSlotSelectorHoveredClear.png"; Visible: false; HitTestVisible: false; }
-  @ChoiceMask #UtilityChoiceMask0 { Anchor: (Left: 60, Top: 36, Width: 64, Height: 64); @Choice #UtilityChoiceGrid0 {} }
-  @ChoiceMask #UtilityChoiceMask1 { Anchor: (Left: 20, Top: 156, Width: 64, Height: 64); @Choice #UtilityChoiceGrid1 {} }
-  @ChoiceMask #UtilityChoiceMask2 { Anchor: (Left: 226, Top: 156, Width: 64, Height: 64); @Choice #UtilityChoiceGrid2 {} }
-  @ChoiceMask #UtilityChoiceMask3 { Anchor: (Left: 187, Top: 36, Width: 64, Height: 64); @Choice #UtilityChoiceGrid3 {} }
-  @ChoiceDisplay #UtilityChoiceDisplay0 { Anchor: (Left: 60, Top: 36, Width: 64, Height: 64); }
-  @ChoiceDisplay #UtilityChoiceDisplay1 { Anchor: (Left: 20, Top: 156, Width: 64, Height: 64); }
-  @ChoiceDisplay #UtilityChoiceDisplay2 { Anchor: (Left: 226, Top: 156, Width: 64, Height: 64); }
-  @ChoiceDisplay #UtilityChoiceDisplay3 { Anchor: (Left: 187, Top: 36, Width: 64, Height: 64); }
+  @ChoiceMask #UtilityChoiceMask0 { Anchor: (Left: 20, Top: 156, Width: 64, Height: 64); @Choice #UtilityChoiceGrid0 {} }
+  @ChoiceMask #UtilityChoiceMask1 { Anchor: (Left: 60, Top: 36, Width: 64, Height: 64); @Choice #UtilityChoiceGrid1 {} }
+  @ChoiceMask #UtilityChoiceMask2 { Anchor: (Left: 187, Top: 36, Width: 64, Height: 64); @Choice #UtilityChoiceGrid2 {} }
+  @ChoiceMask #UtilityChoiceMask3 { Anchor: (Left: 226, Top: 156, Width: 64, Height: 64); @Choice #UtilityChoiceGrid3 {} }
+  @ChoiceDisplay #UtilityChoiceDisplay0 { Anchor: (Left: 20, Top: 156, Width: 64, Height: 64); }
+  @ChoiceDisplay #UtilityChoiceDisplay1 { Anchor: (Left: 60, Top: 36, Width: 64, Height: 64); }
+  @ChoiceDisplay #UtilityChoiceDisplay2 { Anchor: (Left: 187, Top: 36, Width: 64, Height: 64); }
+  @ChoiceDisplay #UtilityChoiceDisplay3 { Anchor: (Left: 226, Top: 156, Width: 64, Height: 64); }
   Button #UtilityClear {
     Anchor: (Left: 123, Top: 231, Width: 64, Height: 64);
     TextTooltipStyle: $T.@ButtonTextTooltipStyle;

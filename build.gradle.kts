@@ -7,7 +7,7 @@ plugins {
 }
 
 group = "com.supremosan"
-version = "0.2.0"
+version = "0.1.0"
 
 // Use an installed official server binary. No shared-source build or modification is needed.
 val installedServer = providers.gradleProperty("hytaleServerJar")
@@ -20,7 +20,7 @@ val engineFiles = files(installedServer)
 allprojects {
     apply(plugin = "java")
     group = "com.supremosan"
-    version = "0.2.0"
+    version = "0.1.0"
     extensions.configure<JavaPluginExtension> {
         toolchain.languageVersion.set(JavaLanguageVersion.of(25))
         withSourcesJar()
@@ -90,6 +90,9 @@ tasks.register<JavaExec>("runServer") {
     standardInput = System.`in`
     maxHeapSize = "4G"
     jvmArgs("--enable-native-access=ALL-UNNAMED")
+    providers.gradleProperty("inventoryGestureTrace").orNull?.let {
+        systemProperty("custominventory.traceGestures", it)
+    }
     argumentProviders.add(org.gradle.process.CommandLineArgumentProvider {
         val arguments = mutableListOf("--assets", file(assetsZip.get()).absolutePath,
             "--allow-op", "--disable-sentry", "--auth-mode", serverAuthMode.get(),

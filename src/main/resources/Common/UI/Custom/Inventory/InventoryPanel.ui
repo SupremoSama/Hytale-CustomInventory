@@ -17,12 +17,19 @@ $C.@Container #InventoryPanel {
       Text: %client.inventory.inventory.title;
     }
     Label #InventoryStatus {
-      Anchor: (Left: 145, Right: 56, Top: 0, Height: 31);
+      Anchor: (Left: 145, Right: 96, Top: 0, Height: 31);
       Style: (FontSize: 12, TextColor: #e6be65, HorizontalAlignment: End, VerticalAlignment: Center, ShrinkTextToFit: true);
       Visible: false;
     }
+    Button #InventoryDropAllButton {
+      Anchor: (Width: 40, Right: 4);
+      NavOrder: 0;
+      TextTooltipStyle: $T.@ButtonTextTooltipStyle;
+      Style: (Sounds: $C.@ButtonSounds);
+      Group { Anchor: (Width: 24, Height: 24); Background: "Textures/TakeAll.png"; }
+    }
     Button #InventorySortButton {
-      Anchor: (Width: 48, Right: 4);
+      Anchor: (Width: 40, Right: 7);
       NavOrder: 1;
       TextTooltipStyle: $T.@ButtonTextTooltipStyle;
       Style: (Sounds: $C.@ButtonSounds);

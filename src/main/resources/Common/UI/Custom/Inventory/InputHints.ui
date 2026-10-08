@@ -22,7 +22,7 @@ $T = "TooltipStyle.ui";
   Anchor: (Width: 280, Height: 28);
   Label #Name {
     FlexWeight: 1;
-    Style: (...@HelpDisabledLabelStyle, HorizontalAlignment: End);
+    Style: (...@HelpLabelStyle, HorizontalAlignment: End);
     Text: @Text;
     Anchor: (Right: 10);
   }
@@ -61,7 +61,8 @@ Group #InventoryHelpHints {
   Anchor: (Right: 50, Bottom: 50, Height: 28);
   LayoutMode: Right;
   NavExclude: true;
-  Group {
+
+  Group #InactiveKeybinds {
     LayoutMode: Bottom;
     @HelpHint #InventoryHelpPickHalf { @Text = %client.inventory.action.pickHalf; @ShowModifier = true; HitTestVisible: false; }
     Group { Anchor: (Height: 20); }
@@ -73,6 +74,39 @@ Group #InventoryHelpHints {
       Anchor: (Width: 280, Height: 28);
       LayoutMode: Left;
       Disabled: true;
+      Style: @HelpButtonStyle;
+      TextTooltipStyle: $T.@ButtonTextTooltipStyle;
+      Label {
+        FlexWeight: 1;
+        Text: %client.inventory.action.drop;
+        Style: (...@HelpLabelStyle, HorizontalAlignment: End);
+        Anchor: (Right: 10);
+        HitTestVisible: false;
+      }
+      $K.@KeyChip #DropKey {
+        @Text = "G";
+        HitTestVisible: false;
+      }
+    }
+  }
+
+  Group #ActiveKeybinds {
+    LayoutMode: Bottom;
+    Visible: false;
+    @HelpHint #InventoryHelpPlaceOne { @Text = %client.inventory.action.placeOne; @MouseIcon = $K.@MouseRightClick; HitTestVisible: false; }
+    Group { Anchor: (Height: 20); }
+    @HelpHint #InventoryHelpPlaceAll { @Text = %client.inventory.action.placeAll; @MouseIcon = $K.@MouseLeftClick; HitTestVisible: false; }
+    Group { Anchor: (Height: 20); }
+    @HelpHint #InventoryHelpDistributeOne { @ShowModifier = true; @Modifier = "DRAG"; @MouseIcon = $K.@MouseRightClick; HitTestVisible: false; }
+    Group { Anchor: (Height: 20); }
+    @HelpHint #InventoryHelpResize { @Text = %client.inventory.action.resize; @MouseIcon = $K.@MouseMiddleClick; HitTestVisible: false; }
+    Group { Anchor: (Height: 20); }
+    @HelpHint #InventoryHelpResizeMod { @Text = %client.inventory.action.resizeMod; @ShowModifier = true; @Modifier = "SHIFT"; @MouseIcon = $K.@MouseMiddleClick; HitTestVisible: false; }
+    Group { Anchor: (Height: 20); }
+    Button #InventoryDropButtonActive {
+      Anchor: (Width: 280, Height: 28);
+      LayoutMode: Left;
+      Disabled: false;
       Style: @HelpButtonStyle;
       TextTooltipStyle: $T.@ButtonTextTooltipStyle;
       Label {

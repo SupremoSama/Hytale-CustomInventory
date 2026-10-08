@@ -61,7 +61,7 @@ public final class InventoryShellPage extends InteractiveCustomUIPage<InventoryS
     private static final String INVENTORY_PANELS = "@inventory:panels";
     private static final String PLAYER_PANEL = "@inventory:player";
     private static final int MAX_VISIBLE_BACKPACK_SLOTS = 45;
-    private final NativeInventoryContent inventoryPanels = new NativeInventoryContent();
+    private final NativeInventoryContent inventoryPanels;
     private final PlayerInventoryPanel playerPanel = new PlayerInventoryPanel();
     private final InventoryRegistry registry;
     private final InventoryPageDefinition hostedView;
@@ -105,6 +105,7 @@ public final class InventoryShellPage extends InteractiveCustomUIPage<InventoryS
                               InventoryPageDefinition hostedView, InventoryUiExtension viewExtension) {
         super(playerRef, CustomPageLifetime.CanDismissOrCloseThroughInteraction, Event.CODEC);
         this.registry = Objects.requireNonNull(registry);
+        this.inventoryPanels = new NativeInventoryContent(this.registry);
         this.dismissedCallback = Objects.requireNonNull(dismissedCallback);
         this.hostedView = hostedView;
         this.viewExtension = viewExtension;
@@ -552,7 +553,7 @@ public final class InventoryShellPage extends InteractiveCustomUIPage<InventoryS
             }
             case "Content" -> {
                 var contentEvent = new InventoryContentEvent(event.contentAction, event.payload, event.slotIndex,
-                        event.dragData(), event.pressedMouseButton != null ? event.pressedMouseButton : event.dragPressedMouseButton,
+                        event.dragData(), event.resolvedMouseButton(),
                         event.formValues(), event.shiftHeld);
                 if ("@extension:view".equals(event.pageId) && viewExtension != null) {
                     viewExtension.handleEvent(activeContext, contentEvent);
@@ -570,16 +571,24 @@ public final class InventoryShellPage extends InteractiveCustomUIPage<InventoryS
                 }
                 if (INVENTORY_PANELS.equals(event.pageId)) {
                     inventoryPanels.handleEvent(activeContext, contentEvent);
-                    if ("HoverSource".equals(event.contentAction) || "UnhoverSource".equals(event.contentAction)) {
+                    if ("HoverSource".equals(event.contentAction) || "UnhoverSource".equals(event.contentAction)
+                            || "UtilityWheelHover".equals(event.contentAction) || "UtilityWheelUnhover".equals(event.contentAction)) {
+                        if (!inventoryPanels.hasPendingReleasedSources()) {
+                            var commands = new UICommandBuilder();
+                            inventoryPanels.refreshDropAction(activeContext, commands);
+                            sendPresentationUpdate(ref, store, commands);
+                            return;
+                        }
+                    }
+                    if ("DragSource".equals(event.contentAction) || "UtilityWheelDragSource".equals(event.contentAction)
+                            || "CancelDrag".equals(event.contentAction)
+                            || ("DragPress".equals(event.contentAction) && !contentEvent.rightMouseButton())) {
                         var commands = new UICommandBuilder();
                         inventoryPanels.refreshDropAction(activeContext, commands);
                         sendPresentationUpdate(ref, store, commands);
                         return;
                     }
-                    // Rebuilding on drag start interrupts the client's held item and cursor.
-                    if (!"DragSource".equals(event.contentAction) && !"UtilityWheelDragSource".equals(event.contentAction)
-                            && !"DragPress".equals(event.contentAction) && !"UtilityWheelDragPress".equals(event.contentAction)
-                            && !"CancelDrag".equals(event.contentAction)) requestRefresh();
+                    requestRefresh();
                     return;
                 }
                 if (PLAYER_PANEL.equals(event.pageId)) {
@@ -614,7 +623,7 @@ public final class InventoryShellPage extends InteractiveCustomUIPage<InventoryS
 
     /**
      * The game's legacy dispatcher drops Data while any presentation update awaits
-     * acknowledgement. During presentation-only updates stable inventory bindings use this page's session,
+     * acknowledgement. During presentation and stable slot updates inventory bindings use this page's session,
      * ownership and detached-source validation; dynamic extension bindings stay native.
      * Acknowledgements and dismissal never pass through this path.
      */
@@ -840,7 +849,8 @@ public final class InventoryShellPage extends InteractiveCustomUIPage<InventoryS
             public String decode(org.bson.BsonValue value, ExtraInfo info) {
                 if (value == null || value.isNull()) return null;
                 if (value.isString()) return value.asString().getValue();
-                return value.isInt32() ? Integer.toString(value.asInt32().getValue()) : null;
+                if (value.isNumber()) return Integer.toString(value.asNumber().intValue());
+                return null;
             }
 
             @Override
@@ -853,6 +863,17 @@ public final class InventoryShellPage extends InteractiveCustomUIPage<InventoryS
                 return Codec.STRING.toSchema(context);
             }
         };
+        // ItemGrid callbacks serialize UI mouse buttons: Left=1, Middle=2, Right=3.
+        // 0 is also accepted as Left for 0-indexed compatibility.
+        private static final Codec<String> UI_MOUSE_BUTTON = new FunctionCodec<>(MOUSE_BUTTON,
+                value -> value == null ? null : switch (value) {
+                    case "0", "1" -> "Left";
+                    case "2" -> "Middle";
+                    case "3" -> "Right";
+                    case "4" -> "XButton1";
+                    case "5" -> "XButton2";
+                    default -> value;
+                }, value -> value);
         public static final BuilderCodec<Event> CODEC = BuilderCodec.builder(Event.class, Event::new)
                 .append(new KeyedCodec<>("Action", Codec.STRING), (d, v) -> d.action = v, d -> d.action).add()
                 .append(new KeyedCodec<>("Target", Codec.STRING), (d, v) -> d.target = v, d -> d.target).add()
@@ -867,8 +888,11 @@ public final class InventoryShellPage extends InteractiveCustomUIPage<InventoryS
                 .append(new KeyedCodec<>("@Checked", Codec.BOOLEAN), (d, v) -> d.checkedValue = v, d -> d.checkedValue).add()
                 .append(new KeyedCodec<>("ShiftHeld", Codec.BOOLEAN), (d, v) -> d.shiftHeld = v, d -> d.shiftHeld).add()
                 .append(new KeyedCodec<>("SlotIndex", OPTIONAL_INTEGER), (d, v) -> d.slotIndex = v, d -> d.slotIndex).add()
-                .append(new KeyedCodec<>("PressedMouseButton", MOUSE_BUTTON), (d, v) -> d.pressedMouseButton = v, d -> d.pressedMouseButton).add()
-                .append(new KeyedCodec<>("DragPressedMouseButton", MOUSE_BUTTON), (d, v) -> d.dragPressedMouseButton = v, d -> d.dragPressedMouseButton).add()
+                .append(new KeyedCodec<>("PressedMouseButton", UI_MOUSE_BUTTON), (d, v) -> d.pressedMouseButton = v, d -> d.pressedMouseButton).add()
+                .append(new KeyedCodec<>("DragPressedMouseButton", UI_MOUSE_BUTTON), (d, v) -> d.dragPressedMouseButton = v, d -> d.dragPressedMouseButton).add()
+                .append(new KeyedCodec<>("MouseButton", MOUSE_BUTTON), (d, v) -> d.mouseButton = v, d -> d.mouseButton).add()
+                .append(new KeyedCodec<>("ClickMouseButton", UI_MOUSE_BUTTON), (d, v) -> d.clickMouseButton = v, d -> d.clickMouseButton).add()
+                .append(new KeyedCodec<>("Button", MOUSE_BUTTON), (d, v) -> d.button = v, d -> d.button).add()
                 .append(new KeyedCodec<>("SourceInventorySectionId", OPTIONAL_INTEGER), (d, v) -> d.sourceInventorySectionId = v, d -> d.sourceInventorySectionId).add()
                 .append(new KeyedCodec<>("SourceSlotId", OPTIONAL_INTEGER), (d, v) -> d.sourceSlotId = v, d -> d.sourceSlotId).add()
                 .append(new KeyedCodec<>("DragSourceInventorySectionId", OPTIONAL_INTEGER), (d, v) -> d.dragSourceInventorySectionId = v, d -> d.dragSourceInventorySectionId).add()
@@ -893,6 +917,9 @@ public final class InventoryShellPage extends InteractiveCustomUIPage<InventoryS
         public Integer slotIndex;
         public String pressedMouseButton;
         public String dragPressedMouseButton;
+        public String mouseButton;
+        public String clickMouseButton;
+        public String button;
         public Integer sourceInventorySectionId;
         public Integer sourceSlotId;
         public Integer dragSourceInventorySectionId;
@@ -901,6 +928,20 @@ public final class InventoryShellPage extends InteractiveCustomUIPage<InventoryS
         public Integer itemStackQuantity;
         public String dragItemStackId;
         public Integer dragItemStackQuantity;
+
+        public String resolvedMouseButton() {
+            // ClickMouseButton belongs to this callback; drag fields belong to the pickup.
+            if (clickMouseButton != null) return clickMouseButton;
+            if (mouseButton != null) return mouseButton;
+            if (button != null) return button;
+            if ("DragSource".equals(contentAction) || "UtilityWheelDragSource".equals(contentAction)) {
+                if (pressedMouseButton != null) return pressedMouseButton;
+                return dragPressedMouseButton;
+            }
+            // A Dropped callback can omit the current button. Its pickup button cannot
+            // turn a completed right placement into a second, whole-stack placement.
+            return null;
+        }
 
         public InventoryContentEvent headerContentEvent() {
             return new InventoryContentEvent(contentAction,
@@ -920,7 +961,7 @@ public final class InventoryShellPage extends InteractiveCustomUIPage<InventoryS
         public InventoryDragData dragData() {
             return new InventoryDragData(sourceInventorySectionId, sourceSlotId,
                     dragSourceInventorySectionId, dragSourceSlotId, itemStackId, itemStackQuantity,
-                    dragItemStackId, dragItemStackQuantity);
+                    dragItemStackId, dragItemStackQuantity, dragPressedMouseButton);
         }
     }
 }

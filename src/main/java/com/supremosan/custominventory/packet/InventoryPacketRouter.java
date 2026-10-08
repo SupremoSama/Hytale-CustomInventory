@@ -17,6 +17,7 @@ import com.hypixel.hytale.protocol.packets.window.WindowType;
 import java.util.Objects;
 import java.util.ArrayDeque;
 import java.util.Deque;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicLong;
@@ -29,6 +30,17 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 public final class InventoryPacketRouter<K> implements AutoCloseable {
     public static final String INVENTORY_PAGE_KEY = "com.supremosan.custominventory.ui.InventoryShellPage";
+    private static final Set<String> STABLE_INVENTORY_SLOT_SELECTORS = Set.of(
+            "#InventoryShell #InventoryPanelHost #StorageGrid.Slots",
+            "#InventoryShell #InventoryPanelHost #HotbarGrid.Slots",
+            "#InventoryShell #PlayerPanelHost #ArmorGrid.Slots",
+            "#InventoryShell #PlayerPanelHost #UtilityGrid.Slots",
+            "#InventoryShell #PlayerPanelHost #UtilityWheelCenterGrid.Slots",
+            "#InventoryShell #PlayerPanelHost #UtilityChoiceGrid0.Slots",
+            "#InventoryShell #PlayerPanelHost #UtilityChoiceGrid1.Slots",
+            "#InventoryShell #PlayerPanelHost #UtilityChoiceGrid2.Slots",
+            "#InventoryShell #PlayerPanelHost #UtilityChoiceGrid3.Slots",
+            "#InventoryShell #ContentHost #BackpackGrid.Slots");
 
     /** All callbacks except enqueue run inside the accepted queued task. */
     public interface Actions<K> {
@@ -191,7 +203,7 @@ public final class InventoryPacketRouter<K> implements AutoCloseable {
         }
     }
 
-    /** Rechecked on the world thread before bypassing only presentation acknowledgements. */
+    /** Rechecked on the world thread before bypassing presentation or stable core-slot acknowledgements. */
     public boolean canDispatchInventoryInput(K connection) {
         var state = connections.get(new IdentityKey<>(connection));
         if (state == null || !active) return false;
@@ -200,12 +212,22 @@ public final class InventoryPacketRouter<K> implements AutoCloseable {
         }
     }
 
+    private static boolean isStableSlotSelector(String selector) {
+        if (selector == null) return false;
+        if (STABLE_INVENTORY_SLOT_SELECTORS.contains(selector)) return true;
+        if (selector.contains("#PocketCrafting")) return true;
+        if (selector.endsWith("#BackpackGrid.Slots")) return true;
+        return false;
+    }
+
     private static boolean blocksInventoryInput(CustomPage page) {
         if (page.isInitial || page.clear || page.eventBindings != null && page.eventBindings.length > 0) return true;
         if (page.commands == null) return false;
         for (var command : page.commands) {
             if (command.type != CustomUICommandType.Set || command.selector == null
-                    || command.selector.endsWith(".Slots") || command.selector.endsWith(".InventorySectionId")) return true;
+                    || command.selector.endsWith(".InventorySectionId")
+                    || command.selector.endsWith(".AreItemsDraggable")
+                    || command.selector.endsWith(".Slots") && !isStableSlotSelector(command.selector)) return true;
         }
         return false;
     }
@@ -317,7 +339,7 @@ public final class InventoryPacketRouter<K> implements AutoCloseable {
         private volatile boolean redirectAccepted;
         private volatile boolean inventoryPageVisible;
         // Packet order matches the native acknowledgement counter; true means
-        // slots, bindings or structure changed, and the normal gate must remain.
+        // identities, dynamic slots, bindings or structure changed, so the normal gate remains.
         private final Deque<Boolean> pageAcknowledgments = new ArrayDeque<>();
         private boolean legacyPageActive;
     }

@@ -35,6 +35,11 @@ public final class InventorySelection {
     public int quantity() { return expected.getQuantity(); }
     public String itemId() { return expected.getItemId(); }
 
+    public InventorySelection withQuantity(int newQuantity) {
+        if (newQuantity <= 0 || expected == null) return null;
+        return new InventorySelection(section, container, slot, expected.withQuantity(newQuantity));
+    }
+
     public boolean sameSource(InventorySelection other) {
         return other != null && section == other.section && container == other.container && slot == other.slot;
     }
@@ -45,6 +50,13 @@ public final class InventorySelection {
 
     public boolean matches(ItemStack current) {
         return !ItemStack.isEmpty(current) && expected.equals(current)
+                && expected.getOverrideDroppedItemAnimation() == current.getOverrideDroppedItemAnimation();
+    }
+
+    public boolean canTakeFrom(ItemStack current, int quantity) {
+        if (ItemStack.isEmpty(current) || quantity <= 0 || current.getQuantity() < quantity) return false;
+        if (!expected.getItemId().equals(current.getItemId())) return false;
+        return expected.isStackableWith(current)
                 && expected.getOverrideDroppedItemAnimation() == current.getOverrideDroppedItemAnimation();
     }
 

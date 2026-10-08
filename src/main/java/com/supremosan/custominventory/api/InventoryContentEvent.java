@@ -24,6 +24,10 @@ public record InventoryContentEvent(String action, String payload, Integer slotI
     }
 
     public boolean rightMouseButton() {
-        return "Right".equalsIgnoreCase(mouseButton) || "2".equals(mouseButton);
+        if (mouseButton == null) return false;
+        return "Right".equalsIgnoreCase(mouseButton)
+                || "2".equals(mouseButton)
+                || "RightButton".equalsIgnoreCase(mouseButton)
+                || "RightMouseButton".equalsIgnoreCase(mouseButton);
     }
 }

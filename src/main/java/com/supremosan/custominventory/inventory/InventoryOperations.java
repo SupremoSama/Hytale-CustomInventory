@@ -4,6 +4,7 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.protocol.packets.inventory.DropItemStack;
 import com.hypixel.hytale.server.core.inventory.InventoryUtils;
+import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.inventory.container.ItemContainer;
 import com.hypixel.hytale.server.core.io.handlers.IPacketHandler;
 import com.hypixel.hytale.server.core.io.handlers.game.InventoryPacketHandler;
@@ -23,12 +24,23 @@ public final class InventoryOperations {
     public static ItemContainer resolveContainer(Ref<EntityStore> ref, Store<EntityStore> store,
                                                 NativeInventorySection section) {
         if (ref == null || !ref.isValid() || store == null || section == null) return null;
-        return InventoryUtils.getSectionById(ref, section.id(), store);
+        try {
+            return InventoryUtils.getSectionById(ref, section.id(), store);
+        } catch (Throwable ignored) {
+            return null;
+        }
     }
 
     public static boolean locked(Ref<EntityStore> ref, Store<EntityStore> store) {
-        return ref == null || !ref.isValid() || store == null
-                || store.getArchetype(ref).contains(PreventInventoryAccess.getComponentType());
+        if (ref == null || !ref.isValid() || store == null) return true;
+        try {
+            var module = com.hypixel.hytale.server.core.modules.entity.EntityModule.get();
+            if (module == null) return false;
+            var type = module.getPreventInventoryAccessComponentType();
+            return type != null && store.getArchetype(ref).contains(type);
+        } catch (Throwable ignored) {
+            return false;
+        }
     }
 
     public static boolean validSlot(ItemContainer container, int slot) {
@@ -40,8 +52,9 @@ public final class InventoryOperations {
                                   ItemContainer target, int targetSlot, int quantity, boolean locked) {
         if (locked) return Result.LOCKED;
         if (selection == null || !validSlot(currentSource, selection.slot())) return Result.INVALID_SOURCE;
+        var currentStack = currentSource.getItemStack((short) selection.slot());
         if (currentSource != selection.container()
-                || !selection.matches(currentSource.getItemStack((short) selection.slot()))) {
+                || (!selection.matches(currentStack) && !selection.canTakeFrom(currentStack, quantity))) {
             return Result.STALE_SELECTION;
         }
         if (!validSlot(target, targetSlot)) return Result.INVALID_TARGET;
@@ -58,10 +71,20 @@ public final class InventoryOperations {
     public static Result move(Ref<EntityStore> ref, Store<EntityStore> store,
                               InventorySelection selection, NativeInventorySection targetSection, int targetSlot,
                               int quantity) {
+        return move(ref, store, selection, targetSection, targetSlot, quantity, null, null);
+    }
+
+    public static Result move(Ref<EntityStore> ref, Store<EntityStore> store,
+                              InventorySelection selection, NativeInventorySection targetSection, int targetSlot,
+                              int quantity, ItemContainer sourceOverride, ItemContainer targetOverride) {
         if (locked(ref, store)) return Result.LOCKED;
         if (targetSection == null) return Result.INVALID_TARGET;
-        ItemContainer source = selection == null ? null : resolveContainer(ref, store, selection.section());
-        ItemContainer target = resolveContainer(ref, store, targetSection);
+        ItemContainer source = sourceOverride != null ? sourceOverride
+                : selection == null ? null : resolveContainer(ref, store, selection.section());
+        if (source == null && selection != null) source = selection.container();
+        ItemContainer target = targetOverride != null ? targetOverride
+                : resolveContainer(ref, store, targetSection);
+        if (target == null && selection != null && selection.section() == targetSection) target = selection.container();
         Result result = validate(selection, source, target, targetSlot, quantity, false);
         if (result != Result.SUBMITTED) return result;
 
@@ -97,8 +120,9 @@ public final class InventoryOperations {
 
     private static Result validateSource(InventorySelection selection, ItemContainer currentSource, int quantity) {
         if (selection == null || !validSlot(currentSource, selection.slot())) return Result.INVALID_SOURCE;
+        var currentStack = currentSource.getItemStack((short) selection.slot());
         if (currentSource != selection.container()
-                || !selection.matches(currentSource.getItemStack((short) selection.slot()))) {
+                || (!selection.matches(currentStack) && !selection.canTakeFrom(currentStack, quantity))) {
             return Result.STALE_SELECTION;
         }
         if (quantity <= 0 || quantity > selection.quantity()) return Result.INVALID_QUANTITY;

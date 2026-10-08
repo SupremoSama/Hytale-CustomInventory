@@ -2,14 +2,26 @@ package com.supremosan.custominventory.ui;
 
 import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
+import com.hypixel.hytale.server.core.ui.ItemGridSlot;
 import com.hypixel.hytale.component.ComponentRegistry;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.hypixel.hytale.codec.ExtraInfo;
+import com.hypixel.hytale.codec.util.RawJsonReader;
+import com.hypixel.hytale.protocol.packets.interface_.CustomPage;
+import com.hypixel.hytale.protocol.packets.interface_.CustomPageEvent;
+import com.hypixel.hytale.protocol.packets.interface_.CustomPageEventType;
+import com.hypixel.hytale.protocol.packets.interface_.CustomPageLifetime;
+import com.hypixel.hytale.protocol.packets.interface_.CustomUIEventBindingType;
+import com.hypixel.hytale.protocol.packets.inventory.DropItemStack;
+import com.supremosan.custominventory.packet.InventoryPacketRouter;
 import com.supremosan.custominventory.api.*;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
+import java.util.ArrayDeque;
+import java.util.List;
 import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -81,6 +93,9 @@ public final class InventoryLifecycleRegression {
         dismissWithoutWorld(failedPage);
         dismissWithoutWorld(failedPage);
         check(failedView.closed == 1, "failed initial view still releases its extension once");
+        exerciseEventCodecMouseButtonDecoding();
+        exerciseEventCodecCurrentClickWins();
+        exerciseInventoryInputDuringSlotAcknowledgments();
         return assertions;
     }
 
@@ -136,5 +151,181 @@ public final class InventoryLifecycleRegression {
         @Override public void onOpened(InventoryContext context) { opened++; }
         @Override public void onUpdate(InventoryContext context, InventoryUiEditor editor) { updated++; }
         @Override public void onClosed(InventoryContext context) { closed++; }
+    }
+
+    private static void exerciseEventCodecMouseButtonDecoding() {
+        String[] samples = {
+            "{\"Action\":\"Content\",\"PageId\":\"@panels\",\"ContentAction\":\"Drop\",\"SlotIndex\":1,\"MouseButton\":2}",
+            "{\"Action\":\"Content\",\"PageId\":\"@panels\",\"ContentAction\":\"Drop\",\"SlotIndex\":1,\"MouseButton\":\"Right\"}",
+            "{\"Action\":\"Content\",\"PageId\":\"@panels\",\"ContentAction\":\"Drop\",\"SlotIndex\":1,\"ClickMouseButton\":3}",
+            "{\"Action\":\"Content\",\"PageId\":\"@panels\",\"ContentAction\":\"Drop\",\"SlotIndex\":1,\"Button\":2}",
+            "{\"Action\":\"Content\",\"PageId\":\"@panels\",\"ContentAction\":\"DragSource\",\"SlotIndex\":1,\"PressedMouseButton\":3}",
+            "{\"Action\":\"Content\",\"PageId\":\"@panels\",\"ContentAction\":\"DragSource\",\"SlotIndex\":1,\"DragPressedMouseButton\":3}",
+            "{\"Action\":\"Content\",\"PageId\":\"@panels\",\"ContentAction\":\"DragSource\",\"SlotIndex\":1,\"DragPressedMouseButton\":\"Right\"}"
+        };
+        for (String sample : samples) {
+            try {
+                var extraInfo = ExtraInfo.THREAD_LOCAL.get();
+                var event = InventoryShellPage.Event.CODEC.decodeJson(new RawJsonReader(sample.toCharArray()), extraInfo);
+                String resolved = event.resolvedMouseButton();
+                check(resolved != null, "resolved mouse button is non-null for: " + sample);
+                var contentEvent = new InventoryContentEvent(event.contentAction, event.payload, event.slotIndex,
+                        event.dragData(), resolved, event.formValues(), event.shiftHeld);
+                check(contentEvent.rightMouseButton(), "contentEvent identifies right mouse button for: " + sample);
+            } catch (Exception e) {
+                throw new AssertionError("Failed to decode: " + sample, e);
+            }
+        }
+    }
+
+    private static void exerciseEventCodecCurrentClickWins() {
+        String[][] samples = {
+                {"\"PressedMouseButton\":1,\"DragPressedMouseButton\":1,\"ClickMouseButton\":3", "Right"},
+                {"\"PressedMouseButton\":3,\"DragPressedMouseButton\":3,\"ClickMouseButton\":1", "Left"},
+                {"\"PressedMouseButton\":3,\"DragPressedMouseButton\":3,\"ClickMouseButton\":0", "Left"},
+                {"\"DragPressedMouseButton\":1,\"MouseButton\":\"Left\",\"ClickMouseButton\":3", "Right"},
+                {"\"DragPressedMouseButton\":3,\"MouseButton\":2,\"ClickMouseButton\":1", "Left"},
+                {"\"DragPressedMouseButton\":3,\"MouseButton\":2,\"ClickMouseButton\":2", "Middle"},
+                {"\"PressedMouseButton\":1,\"DragPressedMouseButton\":1,\"MouseButton\":2", "2"},
+                {"\"PressedMouseButton\":1,\"DragPressedMouseButton\":1,\"Button\":2", "2"}
+        };
+        for (var sample : samples) {
+            String json = "{\"Action\":\"Content\",\"ContentAction\":\"Drop\",\"SlotIndex\":1," + sample[0] + "}";
+            try {
+                var event = InventoryShellPage.Event.CODEC.decodeJson(new RawJsonReader(json.toCharArray()), ExtraInfo.THREAD_LOCAL.get());
+                check(sample[1].equals(event.resolvedMouseButton()),
+                        "current click wins over drag-origin button metadata and retains its enum: " + sample[0]);
+                var content = new InventoryContentEvent(event.contentAction, event.payload, event.slotIndex,
+                        event.dragData(), event.resolvedMouseButton());
+                check(content.rightMouseButton() == ("Right".equals(sample[1]) || "2".equals(sample[1])),
+                        "Middle two does not become protocol Right two: " + sample[0]);
+            } catch (Exception failure) {
+                throw new AssertionError("Failed to decode mixed mouse-button payload: " + json, failure);
+            }
+        }
+        for (String action : List.of("DragPress", "HoverSource", "Drop", "CompleteSourceRelease", "UtilityWheelHover", "UtilityWheelDrop")) {
+            String json = "{\"Action\":\"Content\",\"ContentAction\":\"" + action
+                    + "\",\"PressedMouseButton\":3,\"DragPressedMouseButton\":3}";
+            try {
+                var event = InventoryShellPage.Event.CODEC.decodeJson(new RawJsonReader(json.toCharArray()), ExtraInfo.THREAD_LOCAL.get());
+                check(event.resolvedMouseButton() == null,
+                        "drag-origin Right metadata cannot pretend the current placement or hover is right: " + action);
+            } catch (Exception failure) {
+                throw new AssertionError("Failed to decode origin-only mouse payload: " + json, failure);
+            }
+        }
+    }
+
+    private static void exerciseInventoryInputDuringSlotAcknowledgments() {
+        var fixture = new InputRoutingFixture();
+        var initial = fixture.page(new UICommandBuilder(), new UIEventBuilder());
+        initial.isInitial = true;
+        fixture.router.observeServerPacket(fixture.connection, initial);
+        check(!fixture.input("DragPress", "inventory-session"), "initial inventory mount gates right-button input until acknowledged");
+        fixture.acknowledge();
+
+        String[] coreSlots = {
+                "#InventoryShell #InventoryPanelHost #StorageGrid.Slots",
+                "#InventoryShell #InventoryPanelHost #HotbarGrid.Slots",
+                "#InventoryShell #PlayerPanelHost #ArmorGrid.Slots",
+                "#InventoryShell #PlayerPanelHost #UtilityGrid.Slots",
+                "#InventoryShell #PlayerPanelHost #UtilityWheelCenterGrid.Slots",
+                "#InventoryShell #PlayerPanelHost #UtilityChoiceGrid0.Slots",
+                "#InventoryShell #PlayerPanelHost #UtilityChoiceGrid1.Slots",
+                "#InventoryShell #PlayerPanelHost #UtilityChoiceGrid2.Slots",
+                "#InventoryShell #PlayerPanelHost #UtilityChoiceGrid3.Slots",
+                "#InventoryShell #ContentHost #BackpackGrid.Slots"
+        };
+        for (String selector : coreSlots) {
+            fixture.router.observeServerPacket(fixture.connection, fixture.page(
+                    new UICommandBuilder().set(selector, new ItemGridSlot[0]), new UIEventBuilder()));
+            check(fixture.router.canDispatchInventoryInput(fixture.connection), "stable core slot refresh permits input before acknowledgment: " + selector);
+        }
+        var gestures = List.of("DragPress", "UnhoverSource", "HoverSource", "CompleteSourceRelease", "Drop");
+        for (String gesture : gestures) {
+            check(fixture.input(gesture, "inventory-session"), "rapid right gesture is queued while core Slots await acknowledgment: " + gesture);
+        }
+        fixture.drain();
+        check(fixture.received.equals(gestures), "right press, exits, entries, release and drop arrive in order before slot acknowledgments");
+        check(fixture.input("HoverSource", "old-session"), "stale input reaches the core mounted-session validator");
+        fixture.drain();
+        check(fixture.received.equals(gestures), "core session validation rejects stale input while Slots await acknowledgment");
+        for (String ignored : coreSlots) fixture.acknowledge();
+
+        var rebound = new UIEventBuilder().addEventBinding(CustomUIEventBindingType.SlotMouseEntered,
+                "#InventoryShell #InventoryPanelHost #StorageGrid", false);
+        fixture.router.observeServerPacket(fixture.connection, fixture.page(new UICommandBuilder(), rebound));
+        fixture.router.observeServerPacket(fixture.connection, fixture.page(
+                new UICommandBuilder().set(coreSlots[0], new ItemGridSlot[0]), new UIEventBuilder()));
+        check(!fixture.input("HoverSource", "inventory-session"), "a pending rebind still gates input despite a later core Slots refresh");
+        fixture.acknowledge();
+        check(fixture.input("CompleteSourceRelease", "inventory-session"), "acknowledging the rebind permits release despite pending core Slots acknowledgment");
+        fixture.drain();
+        check(fixture.received.size() == gestures.size() + 1, "accepted release is delivered after the rebind acknowledgment");
+        fixture.acknowledge();
+
+        UICommandBuilder[] gated = {
+                new UICommandBuilder().set("#InventoryShell #InventoryPanelHost #StorageGrid.InventorySectionId", -2),
+                new UICommandBuilder().set("#InventoryShell #InventoryPanelHost #StorageGrid.AreItemsDraggable", false),
+                new UICommandBuilder().set("#ContentExtensions #DynamicGrid.Slots", new ItemGridSlot[0]),
+                new UICommandBuilder().set("#ContentExtensions #StorageGrid.Slots", new ItemGridSlot[0]),
+                new UICommandBuilder().appendInline("#ContentHost", "Group #Replacement {}"),
+                new UICommandBuilder().clear("#ContentHost")
+        };
+        for (UICommandBuilder commands : gated) {
+            fixture.router.observeServerPacket(fixture.connection, fixture.page(commands, new UIEventBuilder()));
+            check(!fixture.input("DragPress", "inventory-session"), "identity, dragging, dynamic-slot and structural updates retain acknowledgment gating");
+            fixture.acknowledge();
+        }
+        var cleared = fixture.page(new UICommandBuilder(), new UIEventBuilder());
+        cleared.clear = true;
+        fixture.router.observeServerPacket(fixture.connection, cleared);
+        check(!fixture.input("DragPress", "inventory-session"), "whole-page clear retains acknowledgment gating");
+        fixture.acknowledge();
+        fixture.router.close();
+    }
+
+    /** Exercises packet-to-world dispatch and the same decoded core session envelope used by the bridge. */
+    private static final class InputRoutingFixture implements InventoryPacketRouter.Actions<Object> {
+        final Object connection = new Object();
+        final InventoryPacketRouter<Object> router = new InventoryPacketRouter<>(this);
+        final ArrayDeque<Runnable> queued = new ArrayDeque<>();
+        final ArrayList<String> received = new ArrayList<>();
+
+        CustomPage page(UICommandBuilder commands, UIEventBuilder events) {
+            return new CustomPage(InventoryPacketRouter.INVENTORY_PAGE_KEY, false, false,
+                    CustomPageLifetime.CanDismiss, commands.getCommands(), events.getEvents());
+        }
+
+        boolean input(String action, String session) {
+            var event = new CustomPageEvent();
+            event.type = CustomPageEventType.Data;
+            event.data = "{\"Action\":\"Content\",\"PageId\":\"@inventory:panels\",\"SessionId\":\"" + session
+                    + "\",\"ContentAction\":\"" + action + "\",\"Payload\":\"STORAGE\",\"SlotIndex\":1,\"PressedMouseButton\":\"Right\"}";
+            return router.route(connection, event);
+        }
+
+        void acknowledge() {
+            var event = new CustomPageEvent();
+            event.type = CustomPageEventType.Acknowledge;
+            check(!router.route(connection, event), "native PageManager continues to own acknowledgments");
+        }
+
+        void drain() { while (!queued.isEmpty()) queued.removeFirst().run(); }
+        @Override public boolean enqueue(Object connection, Runnable task) { queued.addLast(task); return true; }
+        @Override public boolean isInventoryOpen(Object connection) { return true; }
+        @Override public void openInventory(Object connection) { }
+        @Override public void closeInventory(Object connection) { }
+        @Override public void closeWindowZero(Object connection) { }
+        @Override public void relinquishInventory(Object connection) { }
+        @Override public void dropHoveredInventoryItem(Object connection, DropItemStack packet) { }
+        @Override public void handleCustomPageInput(Object connection, CustomPageEvent packet) {
+            if (!router.canDispatchInventoryInput(connection)) return;
+            try {
+                var event = InventoryShellPage.Event.CODEC.decodeJson(new RawJsonReader(packet.data.toCharArray()), ExtraInfo.THREAD_LOCAL.get());
+                if ("Content".equals(event.action) && "@inventory:panels".equals(event.pageId)
+                        && InventoryShellPage.acceptsEvent("inventory-session", event.sessionId)) received.add(event.contentAction);
+            } catch (java.io.IOException failure) { throw new AssertionError(failure); }
+        }
     }
 }

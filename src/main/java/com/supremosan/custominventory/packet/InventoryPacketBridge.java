@@ -35,6 +35,8 @@ public final class InventoryPacketBridge implements AutoCloseable {
     private PacketFilter outboundRegistration;
     private volatile boolean registered;
     private volatile boolean closed;
+    private final java.util.concurrent.atomic.AtomicInteger gestureTraceBudget =
+            new java.util.concurrent.atomic.AtomicInteger(Boolean.getBoolean("custominventory.traceGestures") ? 250 : 0);
 
     public InventoryPacketBridge(InventoryOpener opener) {
         this.opener = Objects.requireNonNull(opener);
@@ -111,8 +113,15 @@ public final class InventoryPacketBridge implements AutoCloseable {
         if (registered) return;
         registered = true;
         outboundRegistration = PacketAdapters.registerOutbound((PlayerPacketWatcher) router::observeServerPacket);
-        inboundRegistration = PacketAdapters.registerInbound((PlayerPacketFilter) (playerRef, packet) ->
-                registered && !closed && router.route(playerRef, packet));
+        inboundRegistration = PacketAdapters.registerInbound((PlayerPacketFilter) (playerRef, packet) -> {
+            if (packet instanceof CustomPageEvent event && event.type == CustomPageEventType.Data
+                    && event.data != null && event.data.contains("ContentAction")
+                    && gestureTraceBudget.getAndUpdate(value -> Math.max(0, value - 1)) > 0) {
+                LOGGER.atInfo().log("Inventory gesture input (dispatch=%s): %s",
+                        router.canDispatchInventoryInput(playerRef), event.data);
+            }
+            return registered && !closed && router.route(playerRef, packet);
+        });
     }
 
     /** Stop accepting packets and invalidate all queued work; this bridge cannot be restarted. */
