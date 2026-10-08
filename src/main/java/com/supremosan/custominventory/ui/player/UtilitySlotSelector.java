@@ -45,6 +45,7 @@ public final class UtilitySlotSelector {
         hoveredSlot = -2;
         presentationSnapshot = null;
         commands.append(host + " #UtilityWheelHost", "Inventory/Utility/UtilityWheel.ui");
+        UtilityWheelHitRegions.build(commands, events, host);
         bindEvents(events);
         refresh(context, commands, host);
     }
@@ -61,8 +62,8 @@ public final class UtilitySlotSelector {
         events.bind(CustomUIEventBindingType.SlotMouseExited, "#UtilityWheelCenterGrid", UNHOVER_CENTER, "", false);
         for (int index = 0; index < DISPLAYED_SLOTS; index++) {
             events.bind(CustomUIEventBindingType.SlotDoubleClicking, "#UtilityChoiceGrid" + index, SELECT, Integer.toString(index), false);
-            events.bind(CustomUIEventBindingType.SlotMouseEntered, "#UtilityChoiceGrid" + index, HOVER, Integer.toString(index), false);
-            events.bind(CustomUIEventBindingType.SlotMouseExited, "#UtilityChoiceGrid" + index, UNHOVER, Integer.toString(index), false);
+            // The inventory-scoped hover binding also updates presentation.
+            // Binding the same grid event twice can replace its highlight handler.
         }
         events.bind(CustomUIEventBindingType.Activating, "#UtilityClear", SELECT, "-1", false);
         events.bind(CustomUIEventBindingType.MouseEntered, "#UtilityClear", HOVER, "-1", false);

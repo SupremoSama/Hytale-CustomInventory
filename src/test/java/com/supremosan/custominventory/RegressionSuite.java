@@ -11,6 +11,7 @@ import com.supremosan.custominventory.api.*;
 import com.supremosan.custominventory.inventory.NativeGestureRegression;
 import com.supremosan.custominventory.ui.InventoryShellPage;
 import com.supremosan.custominventory.ui.InventoryLifecycleRegression;
+import com.supremosan.custominventory.ui.player.UtilityWheelHitRegions;
 import org.bson.BsonDocument;
 
 import java.util.List;
@@ -40,9 +41,26 @@ public final class RegressionSuite {
         registeredContributionsCannotClearOneAnother();
         eventEnvelopesStayWithinTheirSession();
         rebuiltPagesRejectOldEvents();
+        utilityWheelSlicesFollowNativeGeometry();
         assertions += NativeGestureRegression.verify();
         assertions += InventoryLifecycleRegression.verify();
         System.out.println("CustomInventory regression checks passed (" + assertions + " assertions).");
+    }
+
+    private static void utilityWheelSlicesFollowNativeGeometry() {
+        equal(-2, UtilityWheelHitRegions.slotAt(155, 155), "wheel center remains a drop target");
+        equal(-2, UtilityWheelHitRegions.slotAt(0, 0), "wheel corners do not select items");
+        int[] slots = {2, 3, -1, 0, 1};
+        for (int slice = 0; slice < slots.length; slice++) {
+            for (int radius : new int[]{75, 108, 150}) {
+                double angle = Math.toRadians(slice * 72 + 36);
+                equal(slots[slice], UtilityWheelHitRegions.slotAt(
+                        155 + Math.sin(angle) * radius, 155 - Math.cos(angle) * radius),
+                        "hover covers inner edge, icon and outer edge of slice " + slice);
+            }
+        }
+        equal(-2, UtilityWheelHitRegions.slotAt(155, 86), "inside center boundary");
+        equal(-2, UtilityWheelHitRegions.slotAt(155, 310), "outside wheel boundary");
     }
 
     private static void occupiedSlotsFollowContainerChanges() {

@@ -570,11 +570,20 @@ public final class InventoryShellPage extends InteractiveCustomUIPage<InventoryS
                     return;
                 }
                 if (INVENTORY_PANELS.equals(event.pageId)) {
+                    boolean utilityHover = "UtilityWheelHover".equals(event.contentAction)
+                            || "UtilityWheelUnhover".equals(event.contentAction);
+                    if (utilityHover) {
+                        playerPanel.handleEvent(activeContext, new InventoryContentEvent(
+                                "UtilityWheelHover".equals(event.contentAction)
+                                        ? UtilitySlotSelector.HOVER : UtilitySlotSelector.UNHOVER,
+                                event.payload, event.slotIndex));
+                    }
                     inventoryPanels.handleEvent(activeContext, contentEvent);
                     if ("HoverSource".equals(event.contentAction) || "UnhoverSource".equals(event.contentAction)
                             || "UtilityWheelHover".equals(event.contentAction) || "UtilityWheelUnhover".equals(event.contentAction)) {
                         if (!inventoryPanels.hasPendingReleasedSources()) {
                             var commands = new UICommandBuilder();
+                            if (utilityHover) playerPanel.refresh(activeContext, commands, "#PlayerPanelHost");
                             inventoryPanels.refreshDropAction(activeContext, commands);
                             sendPresentationUpdate(ref, store, commands);
                             return;

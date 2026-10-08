@@ -101,6 +101,8 @@ Button #UtilityWheel {
   Group #UtilityHovered2 { Anchor: (Full: 0); Background: "Textures/ItemSlotSelectorHovered3.png"; Visible: false; HitTestVisible: false; }
   Group #UtilityHovered3 { Anchor: (Full: 0); Background: "Textures/ItemSlotSelectorHovered2.png"; Visible: false; HitTestVisible: false; }
   Group #UtilityHoveredClear { Anchor: (Full: 0); Background: "Textures/ItemSlotSelectorHoveredClear.png"; Visible: false; HitTestVisible: false; }
+  // Wedge hit strips sit behind the native item grids, preserving item dragging.
+  Group #UtilityWedgeHitRegions { Anchor: (Full: 0); }
   @ChoiceMask #UtilityChoiceMask0 { Anchor: (Left: 20, Top: 156, Width: 64, Height: 64); @Choice #UtilityChoiceGrid0 {} }
   @ChoiceMask #UtilityChoiceMask1 { Anchor: (Left: 60, Top: 36, Width: 64, Height: 64); @Choice #UtilityChoiceGrid1 {} }
   @ChoiceMask #UtilityChoiceMask2 { Anchor: (Left: 187, Top: 36, Width: 64, Height: 64); @Choice #UtilityChoiceGrid2 {} }
