@@ -1,5 +1,7 @@
-$G = "InventoryGridStyle.ui";
 $C = "../Common.ui";
+$G = "InventoryGridStyle.ui";
+$T = "TooltipStyle.ui";
+
 @EmptyHat = PatchStyle(TexturePath: "Textures/EquipmentHat.png");
 @EmptyBackpack = PatchStyle(TexturePath: "Textures/EquipmentBackpack.png");
 @EmptyCollar = PatchStyle(TexturePath: "Textures/EquipmentCollar.png");
@@ -9,9 +11,9 @@ Group #ExtraEquipmentPanel {
   Anchor: (Left: 0, Top: 0, Width: 98, Height: 352);
   Background: (TexturePath: "../Common/ContainerFullPatch.png", Border: 10);
   Label #ExtraEquipmentTitle {
-    Anchor: (Top: 10, Left: 8, Right: 8, Height: 24);
-    Text: "GEAR";
-    Style: (FontSize: 12, RenderBold: true, TextColor: #b4c8c9, HorizontalAlignment: Center);
+    Anchor: (Top: 10, Left: 6, Right: 24, Height: 24);
+    Text: %server.custominventory.extraequipment.title;
+    Style: (FontSize: 12, MinShrinkTextToFitFontSize: 8, ShrinkTextToFit: true, RenderBold: true, RenderUppercase: true, TextColor: #b4c8c9, HorizontalAlignment: Center);
   }
   ItemGrid #ExtraEquipmentGrid {
     Anchor: (Left: 10, Top: 38, Width: 78, Height: 308);
@@ -19,13 +21,22 @@ Group #ExtraEquipmentPanel {
     InventorySectionId: -1060;
     AreItemsDraggable: true;
     RenderItemQualityBackground: true;
+    InfoDisplay: Tooltip;
     Padding: 2;
     Style: $G.@InventoryGridStyle;
   }
 }
-TextButton #ExtraEquipmentToggle {
-  Anchor: (Left: 82, Top: 4, Width: 24, Height: 32);
-  Text: "<";
-  Style: $C.@DefaultTextButtonStyle;
-  TooltipText: "Show / hide extra equipment";
+Button #ExtraEquipmentToggle {
+  Anchor: (Left: 82, Top: 4, Width: 28, Height: 32);
+  NavOrder: 0;
+  TooltipText: %server.custominventory.extraequipment.hide;
+  TextTooltipStyle: $T.@ButtonTextTooltipStyle;
+  Style: ButtonStyle(
+    Default: (Background: "Textures/CharacterPanelButton.png"),
+    Hovered: (Background: "Textures/CharacterPanelButtonActive.png"),
+    Pressed: (Background: (TexturePath: "Textures/CharacterPanelButtonActive.png", Color: #ffffff(0.7))),
+    Sounds: $C.@ButtonSounds
+  );
+  Group #CollapseIcon { Anchor: (Width: 16, Height: 16); Background: "Textures/EquipmentCollapseArrow.png"; HitTestVisible: false; }
+  Group #ExpandIcon { Anchor: (Width: 16, Height: 16); Background: "Textures/EquipmentExpandArrow.png"; HitTestVisible: false; Visible: false; }
 }

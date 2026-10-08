@@ -24,3 +24,6 @@ custominventory.utility.unequip=卸下工具物品
 custominventory.utility.select=選擇工具物品
 custominventory.action.place_all=放置全部
 custominventory.action.distribute_one=每個格子放置一個
+custominventory.extraequipment.title=裝備
+custominventory.extraequipment.hide=隱藏額外裝備
+custominventory.extraequipment.show=顯示額外裝備

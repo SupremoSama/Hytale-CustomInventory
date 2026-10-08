@@ -24,3 +24,6 @@ custominventory.utility.unequip=Desequipar item utilitário
 custominventory.utility.select=Selecionar item utilitário
 custominventory.action.place_all=Colocar todos
 custominventory.action.distribute_one=Colocar um por espaço
+custominventory.extraequipment.title=Equipamentos
+custominventory.extraequipment.hide=Ocultar equipamentos extras
+custominventory.extraequipment.show=Mostrar equipamentos extras

@@ -37,7 +37,10 @@ public final class InventoryText {
             Map.entry("page.memories", "Collected memories"),
             Map.entry("page.backpack", "Backpack"),
             Map.entry("utility.unequip", "Unequip utility item"),
-            Map.entry("utility.select", "Select utility item"));
+            Map.entry("utility.select", "Select utility item"),
+            Map.entry("extraequipment.title", "Gear"),
+            Map.entry("extraequipment.hide", "Hide extra equipment"),
+            Map.entry("extraequipment.show", "Show extra equipment"));
 
     private InventoryText() { }
 

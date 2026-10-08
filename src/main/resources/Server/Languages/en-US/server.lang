@@ -24,3 +24,6 @@ custominventory.utility.unequip=Unequip utility item
 custominventory.utility.select=Select utility item
 custominventory.action.place_all=Place all
 custominventory.action.distribute_one=Place one per slot
+custominventory.extraequipment.title=Gear
+custominventory.extraequipment.hide=Hide extra equipment
+custominventory.extraequipment.show=Show extra equipment

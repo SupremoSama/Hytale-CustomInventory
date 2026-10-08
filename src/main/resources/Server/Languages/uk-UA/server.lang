@@ -24,3 +24,6 @@ custominventory.utility.unequip=Зняти допоміжний предмет
 custominventory.utility.select=Вибрати допоміжний предмет
 custominventory.action.place_all=Покласти все
 custominventory.action.distribute_one=По одному в комірку
+custominventory.extraequipment.title=Спорядження
+custominventory.extraequipment.hide=Приховати додаткове спорядження
+custominventory.extraequipment.show=Показати додаткове спорядження

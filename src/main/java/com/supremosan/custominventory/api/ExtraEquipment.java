@@ -36,7 +36,7 @@ public final class ExtraEquipment extends InventoryComponent {
     }
     public static boolean accepts(short slot, ItemStack item) {
         return ItemStack.isEmpty(item) || item.getQuantity() == 1
-                && ACCEPTS.getOrDefault(slot, ignored -> false).test(item);
+                && ACCEPTS.getOrDefault(slot, ignored -> slot == COLLAR || slot == BELT).test(item);
     }
     private void configure() {
         for (short slot = 0; slot < inventory.getCapacity(); slot++) {

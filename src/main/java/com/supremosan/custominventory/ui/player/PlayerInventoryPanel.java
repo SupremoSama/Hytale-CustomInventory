@@ -16,6 +16,7 @@ import com.supremosan.custominventory.api.InventoryContentEvent;
 import com.supremosan.custominventory.api.InventoryContext;
 import com.supremosan.custominventory.api.InventoryEventBindings;
 import com.supremosan.custominventory.inventory.InventoryOperations;
+import com.supremosan.custominventory.ui.InventoryText;
 
 import java.text.MessageFormat;
 import java.util.Locale;
@@ -31,7 +32,7 @@ public final class PlayerInventoryPanel {
     private final UtilitySlotSelector utilitySelector = new UtilitySlotSelector();
     private Snapshot snapshot;
     private String snapshotHost;
-    private boolean equipmentVisible = true;
+    private boolean equipmentVisible = false;
 
     /** The event bindings must be scoped to hostSelector, for example #PlayerPanelHost. */
     public void build(InventoryContext context, UICommandBuilder commands,
@@ -52,7 +53,10 @@ public final class PlayerInventoryPanel {
     /** Refresh only values/eye state without remounting the character preview or equipment grids. */
     public void refresh(InventoryContext context, UICommandBuilder commands, String hostSelector) {
         commands.set("#ExtraEquipmentPanel.Visible", equipmentVisible);
-        commands.set("#ExtraEquipmentToggle.Text", equipmentVisible ? "<" : ">");
+        commands.set("#ExtraEquipmentToggle #CollapseIcon.Visible", equipmentVisible);
+        commands.set("#ExtraEquipmentToggle #ExpandIcon.Visible", !equipmentVisible);
+        commands.set("#ExtraEquipmentToggle.TooltipText", InventoryText.get(context.playerRef().getLanguage(),
+                equipmentVisible ? "extraequipment.hide" : "extraequipment.show"));
         utilitySelector.refresh(context, commands, hostSelector);
         var next = readSnapshot(context);
         if (Objects.equals(snapshotHost, hostSelector) && next.equals(snapshot)) return;

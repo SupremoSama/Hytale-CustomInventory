@@ -24,3 +24,6 @@ custominventory.utility.unequip=유틸리티 아이템 해제
 custominventory.utility.select=유틸리티 아이템 선택
 custominventory.action.place_all=모두 놓기
 custominventory.action.distribute_one=칸마다 하나씩 놓기
+custominventory.extraequipment.title=장비
+custominventory.extraequipment.hide=추가 장비 숨기기
+custominventory.extraequipment.show=추가 장비 표시
