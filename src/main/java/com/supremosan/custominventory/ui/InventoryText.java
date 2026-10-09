@@ -20,6 +20,7 @@ public final class InventoryText {
             Map.entry("status.invalid_quantity", "Invalid item quantity."),
             Map.entry("status.inventory_changed", "The inventory changed. Try again."),
             Map.entry("status.cannot_change", "The inventory cannot be changed."),
+            Map.entry("status.cannot_equip", "This item cannot be equipped in that slot."),
             Map.entry("status.drop_all_hover", "Hover an item to drop every stack of its type."),
             Map.entry("status.drop_all_failed", "Some stacks could not be dropped."),
             Map.entry("tooltip.drop_hover", "Hover an inventory item to select a stack to drop."),

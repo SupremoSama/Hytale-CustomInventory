@@ -7,36 +7,46 @@ $T = "TooltipStyle.ui";
 @EmptyCollar = PatchStyle(TexturePath: "Textures/EquipmentCollar.png");
 @EmptyBelt = PatchStyle(TexturePath: "Textures/EquipmentBelt.png");
 
-Group #ExtraEquipmentPanel {
-  Anchor: (Left: 0, Top: 0, Width: 98, Height: 352);
-  Background: (TexturePath: "../Common/ContainerFullPatch.png", Border: 10);
-  Label #ExtraEquipmentTitle {
-    Anchor: (Top: 10, Left: 6, Right: 24, Height: 24);
-    Text: %server.custominventory.extraequipment.title;
-    Style: (FontSize: 12, MinShrinkTextToFitFontSize: 8, ShrinkTextToFit: true, RenderBold: true, RenderUppercase: true, TextColor: #b4c8c9, HorizontalAlignment: Center);
+// Same frame as the other inventory panels. The host Top (InventoryShell.ui, 231) + title (38)
+// + padding (8) puts the grid on PlayerPanel.ui's #ArmorGrid origin (277), so both equipment
+// columns share their slot rows.
+$C.@Container #ExtraEquipmentPanel {
+  @ContentPadding = Padding(Full: 8);
+  Anchor: (Left: 0, Top: 0, Width: 98, Height: 362);
+  #Title {
+    Label #ExtraEquipmentTitle {
+      Anchor: (Left: 8, Right: 28);
+      Text: %server.custominventory.extraequipment.title;
+      Style: (FontName: "Secondary", FontSize: 13, RenderBold: true, RenderUppercase: true, TextColor: #b4c8c9, HorizontalAlignment: Center, VerticalAlignment: Center, ShrinkTextToFit: true, MinShrinkTextToFitFontSize: 8, LetterSpacing: 0);
+    }
   }
-  ItemGrid #ExtraEquipmentGrid {
-    Anchor: (Left: 10, Top: 38, Width: 78, Height: 308);
-    SlotsPerRow: 1;
-    InventorySectionId: -1060;
-    AreItemsDraggable: true;
-    RenderItemQualityBackground: true;
-    InfoDisplay: Tooltip;
-    Padding: 2;
-    Style: $G.@InventoryGridStyle;
+  #Content {
+    ItemGrid #ExtraEquipmentGrid {
+      Anchor: (Left: 2, Width: 78, Height: 308);
+      SlotsPerRow: 1;
+      InventorySectionId: -1060;
+      AreItemsDraggable: true;
+      RenderItemQualityBackground: true;
+      InfoDisplay: Tooltip;
+      Padding: 2;
+      Style: $G.@InventoryGridStyle;
+    }
   }
 }
+
+// Expanded: a header action. Collapsed: a pull-tab beside the player panel (PlayerInventoryPanel sets the Anchor).
 Button #ExtraEquipmentToggle {
-  Anchor: (Left: 82, Top: 4, Width: 28, Height: 32);
+  Anchor: (Left: 70, Top: 8, Width: 24, Height: 24);
   NavOrder: 0;
   TooltipText: %server.custominventory.extraequipment.hide;
   TextTooltipStyle: $T.@ButtonTextTooltipStyle;
   Style: ButtonStyle(
-    Default: (Background: "Textures/CharacterPanelButton.png"),
-    Hovered: (Background: "Textures/CharacterPanelButtonActive.png"),
-    Pressed: (Background: (TexturePath: "Textures/CharacterPanelButtonActive.png", Color: #ffffff(0.7))),
+    Default: (),
+    Hovered: (Background: #ffffff(0.08)),
+    Pressed: (Background: #ffffff(0.14)),
     Sounds: $C.@ButtonSounds
   );
-  Group #CollapseIcon { Anchor: (Width: 16, Height: 16); Background: "Textures/EquipmentCollapseArrow.png"; HitTestVisible: false; }
-  Group #ExpandIcon { Anchor: (Width: 16, Height: 16); Background: "Textures/EquipmentExpandArrow.png"; HitTestVisible: false; Visible: false; }
+  Group #TabBackground { Anchor: (Full: 0); Background: (TexturePath: "../Common/ContainerFullPatch.png", Border: 10); Visible: false; HitTestVisible: false; }
+  Group #CollapseIcon { Anchor: (Width: 14, Height: 14); Background: "Textures/EquipmentCollapseArrow.png"; HitTestVisible: false; }
+  Group #ExpandIcon { Anchor: (Width: 14, Height: 14); Background: "Textures/EquipmentExpandArrow.png"; HitTestVisible: false; Visible: false; }
 }

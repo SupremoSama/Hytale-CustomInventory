@@ -29,7 +29,8 @@ Group #InventoryBackdrop {
 Group #InventoryShell {
   Anchor: (Width: 1721, Top: 0, Bottom: 20);
   LayoutMode: Left;
-  Group #ExtraEquipmentHost { Anchor: (Width: 110, Height: 352, Top: 270); }
+  // ExtraEquipment.ui aligns its grid with the armor grid from this origin.
+  Group #ExtraEquipmentHost { Anchor: (Width: 110, Height: 362, Top: 231); }
   Group #PlayerPanelHost {
     Anchor: (Width: 410, Height: 720, Top: 180);
     LayoutMode: Top;

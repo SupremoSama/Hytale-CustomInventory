@@ -138,7 +138,12 @@ public final class PocketCraftingContent implements InventoryContent {
                     recipe.getId().equals(selectedRecipeId));
         }
         commands.set(root + " #RecipeGrid.Slots", slots);
-        if (mount) bindings.bind(CustomUIEventBindingType.SlotClicking, "#PocketCrafting #RecipeGrid", "SelectRecipe", "", true);
+        if (mount) {
+            // Bound once: the shell keeps this content session valid across presentation refreshes.
+            bindings.bind(CustomUIEventBindingType.SlotClicking, "#PocketCrafting #RecipeGrid", "SelectRecipe", "", true);
+            for (String quantity : List.of("1", "10", "All")) bindings.bind(CustomUIEventBindingType.Activating,
+                    "#PocketCrafting #Craft" + quantity + "Button", "Craft" + quantity, "", true);
+        }
         commands.set(root + " #RecipeDetails.Visible", selected != null);
         commands.set(root + " #NoRecipes.Visible", selected == null);
         if (selected == null) return;
@@ -181,10 +186,6 @@ public final class PocketCraftingContent implements InventoryContent {
         commands.set(root + " #Craft10Button.Disabled", !backendReady || limit < 10);
         commands.set(root + " #CraftAllButton.Disabled", !backendReady || limit < 1);
         commands.set(root + " #ProgressBar.Value", 0f); // Pocket crafting completes instantly in the engine.
-        if (mount) {
-            for (String quantity : List.of("1", "10", "All")) bindings.bind(CustomUIEventBindingType.Activating,
-                    "#PocketCrafting #Craft" + quantity + "Button", "Craft" + quantity, "", true);
-        }
         commands.set(root + " #Status.Text", status);
         commands.set(root + " #Status.Visible", !status.isBlank());
     }

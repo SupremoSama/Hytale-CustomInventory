@@ -11,6 +11,8 @@ import com.hypixel.hytale.server.core.modules.entity.player.PlayerSettings;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatMap;
 import com.hypixel.hytale.server.core.modules.entitystats.asset.DefaultEntityStatTypes;
 import com.hypixel.hytale.server.core.modules.i18n.I18nModule;
+import com.hypixel.hytale.server.core.ui.Anchor;
+import com.hypixel.hytale.server.core.ui.Value;
 import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.supremosan.custominventory.api.InventoryContentEvent;
 import com.supremosan.custominventory.api.InventoryContext;
@@ -53,6 +55,8 @@ public final class PlayerInventoryPanel {
     /** Refresh only values/eye state without remounting the character preview or equipment grids. */
     public void refresh(InventoryContext context, UICommandBuilder commands, String hostSelector) {
         commands.set("#ExtraEquipmentPanel.Visible", equipmentVisible);
+        commands.setObject("#ExtraEquipmentToggle.Anchor", extraEquipmentToggleAnchor(equipmentVisible));
+        commands.set("#ExtraEquipmentToggle #TabBackground.Visible", !equipmentVisible);
         commands.set("#ExtraEquipmentToggle #CollapseIcon.Visible", equipmentVisible);
         commands.set("#ExtraEquipmentToggle #ExpandIcon.Visible", !equipmentVisible);
         commands.set("#ExtraEquipmentToggle.TooltipText", InventoryText.get(context.playerRef().getLanguage(),
@@ -68,6 +72,16 @@ public final class PlayerInventoryPanel {
         commands.set(selector(hostSelector, "#StatDefense.Text"), next.defense());
         snapshot = next;
         snapshotHost = hostSelector;
+    }
+
+    /** ExtraEquipment.ui: a header action while expanded, a pull-tab against the player panel while collapsed. */
+    private static Anchor extraEquipmentToggleAnchor(boolean expanded) {
+        var anchor = new Anchor();
+        anchor.setLeft(Value.of(expanded ? 70 : 76));
+        anchor.setTop(Value.of(expanded ? 8 : 0));
+        anchor.setWidth(Value.of(expanded ? 24 : 34));
+        anchor.setHeight(Value.of(expanded ? 24 : 38));
+        return anchor;
     }
 
     /** @return true for recognized armor-eye actions, including stale/denied requests. */

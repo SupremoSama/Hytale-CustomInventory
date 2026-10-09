@@ -88,7 +88,8 @@ public final class InventoryShellPage extends InteractiveCustomUIPage<InventoryS
     private volatile InventoryContext activeContext;
     private String pageId = DEFAULT_PAGE;
     private String sessionId;
-    private String hostedContentSessionId;
+    // Token of the active content's mounted bindings; rotates only when the content binds again.
+    private String contentSessionId;
     private long revision;
     private volatile boolean dismissed;
     private NativeTabState nativeTabState;
@@ -242,7 +243,7 @@ public final class InventoryShellPage extends InteractiveCustomUIPage<InventoryS
             else activeContent.build(activeContext, commands, bindings, "#ContentHost");
             // Mounted forms keep their bindings on presentation-only refreshes.
             // A content rebuild/rebind gets a new token, invalidating events from removed controls.
-            if (hostedView != null && (initial || pageChanged || bindings.bindingCount() > 0)) hostedContentSessionId = sessionId;
+            if (initial || pageChanged || bindings.bindingCount() > 0) contentSessionId = sessionId;
         } else if (activeContent == null) {
             commands.appendInline("#ContentHost", "Label { Text: \"No inventory pages registered.\"; Style: (TextColor: #c9d6df, FontSize: 18); }");
         }
@@ -521,10 +522,11 @@ public final class InventoryShellPage extends InteractiveCustomUIPage<InventoryS
         boolean persistentEvent = panelEvent || "Close".equals(event.action) || "Map".equals(event.action) || "Refresh".equals(event.action)
                 || "CraftingHeader".equals(event.action) || "BackpackHeader".equals(event.action)
                 || "Content".equals(event.action) && (hostedView != null || event.pageId != null && event.pageId.startsWith("@extension:"));
+        // Content bound once at mount keeps working across refreshes; a rebuild or rebind invalidates older events.
         String expectedSession = "Navigate".equals(event.action) || "Button".equals(event.action)
-                ? navigationInstanceId : persistentEvent ? pageInstanceId : sessionId;
+                ? navigationInstanceId : persistentEvent ? pageInstanceId : contentSessionId;
         if (hostedView != null && "Content".equals(event.action) && hostedView.id().equals(event.pageId))
-            expectedSession = hostedContentSessionId;
+            expectedSession = contentSessionId;
         if (dismissed || !acceptsEvent(expectedSession, event.sessionId)
                 || !isActive(ref, store) || !remainInAdventure(ref, store)) return;
         switch (event.action == null ? "" : event.action) {
