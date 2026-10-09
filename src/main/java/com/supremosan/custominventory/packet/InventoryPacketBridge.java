@@ -4,6 +4,7 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.logger.HytaleLogger;
 import com.hypixel.hytale.protocol.GameMode;
+import com.hypixel.hytale.protocol.Packet;
 import com.hypixel.hytale.protocol.packets.interface_.Page;
 import com.hypixel.hytale.protocol.packets.interface_.CustomPageEvent;
 import com.hypixel.hytale.protocol.packets.interface_.CustomPageEventType;
@@ -11,16 +12,20 @@ import com.hypixel.hytale.protocol.packets.inventory.DropItemStack;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.io.adapter.PacketAdapters;
 import com.hypixel.hytale.server.core.io.adapter.PacketFilter;
-import com.hypixel.hytale.server.core.io.adapter.PlayerPacketFilter;
 import com.hypixel.hytale.server.core.io.adapter.PlayerPacketWatcher;
+import com.hypixel.hytale.server.core.io.handlers.game.GamePacketHandler;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.supremosan.custominventory.inventory.InventoryOperations;
 import com.supremosan.custominventory.ui.InventoryShellPage;
 
 import java.util.Objects;
+import java.util.function.BiPredicate;
 
-/** Public packet-adapter bridge. ECS components and windows/pages are accessed on the world thread. */
+/**
+ * Routes inventory packets through transport-independent sub-packet hooks, with an inbound packet-adapter
+ * fallback for connections created before the hooks. ECS components and windows/pages are accessed on the world thread.
+ */
 public final class InventoryPacketBridge implements AutoCloseable {
     @FunctionalInterface
     public interface InventoryOpener {
@@ -31,6 +36,7 @@ public final class InventoryPacketBridge implements AutoCloseable {
     private static final HytaleLogger LOGGER = HytaleLogger.forEnclosingClass();
     private final InventoryOpener opener;
     private final InventoryPacketRouter<PlayerRef> router;
+    private final BiPredicate<PlayerRef, Packet> packetRoute = this::route;
     private PacketFilter inboundRegistration;
     private PacketFilter outboundRegistration;
     private volatile boolean registered;
@@ -113,15 +119,30 @@ public final class InventoryPacketBridge implements AutoCloseable {
         if (registered) return;
         registered = true;
         outboundRegistration = PacketAdapters.registerOutbound((PlayerPacketWatcher) router::observeServerPacket);
-        inboundRegistration = PacketAdapters.registerInbound((PlayerPacketFilter) (playerRef, packet) -> {
-            if (packet instanceof CustomPageEvent event && event.type == CustomPageEventType.Data
-                    && event.data != null && event.data.contains("ContentAction")
-                    && gestureTraceBudget.getAndUpdate(value -> Math.max(0, value - 1)) > 0) {
-                LOGGER.atInfo().log("Inventory gesture input (dispatch=%s): %s",
-                        router.canDispatchInventoryInput(playerRef), event.data);
-            }
-            return registered && !closed && router.route(playerRef, packet);
-        });
+        // Primary path on every transport, for connections created from now on.
+        InventoryPacketHooks.install(packetRoute);
+        // Inbound adapters only run on the Netty transport: they cover connections that existed before
+        // the hooks were installed, and skip hooked connections so a packet is never routed twice.
+        inboundRegistration = (handler, packet) -> InventoryPacketHooks.isHookedPacket(packet)
+                && handler instanceof GamePacketHandler game && !InventoryPacketHooks.isHooked(game)
+                && route(game.getPlayerRef(), packet);
+        PacketAdapters.registerInbound(inboundRegistration);
+    }
+
+    /** Whether this player's connection uses the transport-independent hooks. */
+    public boolean usesTransportHooks(PlayerRef playerRef) {
+        return InventoryPacketHooks.isHooked(playerRef.getPacketHandler());
+    }
+
+    private boolean route(PlayerRef playerRef, Packet packet) {
+        if (playerRef == null || !registered || closed) return false;
+        if (packet instanceof CustomPageEvent event && event.type == CustomPageEventType.Data
+                && event.data != null && event.data.contains("ContentAction")
+                && gestureTraceBudget.getAndUpdate(value -> Math.max(0, value - 1)) > 0) {
+            LOGGER.atInfo().log("Inventory gesture input (dispatch=%s): %s",
+                    router.canDispatchInventoryInput(playerRef), event.data);
+        }
+        return router.route(playerRef, packet);
     }
 
     /** Stop accepting packets and invalidate all queued work; this bridge cannot be restarted. */
@@ -129,6 +150,7 @@ public final class InventoryPacketBridge implements AutoCloseable {
         if (closed) return;
         registered = false;
         closed = true;
+        InventoryPacketHooks.uninstall(packetRoute);
         router.close();
         try {
             if (inboundRegistration != null) {

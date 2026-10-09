@@ -34,6 +34,7 @@ public final class CustomInventoryPlugin extends JavaPlugin {
     private final InventoryRegistry registry = new InventoryRegistry();
     private final Set<InventoryShellPage> sessions = ConcurrentHashMap.newKeySet();
     private final InventoryPacketBridge packetBridge = new InventoryPacketBridge(this::open);
+    private final Set<java.util.UUID> unhookedReported = ConcurrentHashMap.newKeySet();
     private volatile boolean running;
     private InventoryRegistry.Registration registryListener;
 
@@ -91,6 +92,7 @@ public final class CustomInventoryPlugin extends JavaPlugin {
         getCommandRegistry().registerCommand(new CustomInventoryCommand(this));
         getEventRegistry().registerGlobal(PlayerReadyEvent.class, this::onPlayerReady);
         getEventRegistry().registerGlobal(PlayerDisconnectEvent.class, event -> {
+            unhookedReported.remove(event.getPlayerRef().getUuid());
             packetBridge.disconnect(event.getPlayerRef());
             for (var page : sessions) if (page.belongsTo(event.getPlayerRef())) page.closeForShutdown();
         });
@@ -112,7 +114,8 @@ public final class CustomInventoryPlugin extends JavaPlugin {
             packetBridge.synchronizeGameMode(playerRef);
         }
         LOGGER.atInfo().log("CustomInventory ready: %s pages, %s extension buttons", registry.pagesSnapshot().size(), registry.buttonsSnapshot().size());
-        LOGGER.atInfo().log("Adventure PocketCrafting requests now toggle CustomInventory; other game modes and native window types keep their original handlers");
+        LOGGER.atInfo().log("Adventure PocketCrafting requests now toggle CustomInventory on every network transport; "
+                + "other game modes and native window types keep their original handlers");
     }
 
     private void onPlayerReady(PlayerReadyEvent event) {
@@ -124,7 +127,13 @@ public final class CustomInventoryPlugin extends JavaPlugin {
             if (!running || !ref.isValid() || ref.getStore() != store) return;
             var playerRef = store.getComponent(ref, PlayerRef.getComponentType());
             com.supremosan.custominventory.api.ExtraEquipment.ensure(ref, store);
-            if (playerRef != null && playerRef.getReference() == ref) packetBridge.synchronizeGameMode(playerRef);
+            if (playerRef != null && playerRef.getReference() == ref) {
+                packetBridge.synchronizeGameMode(playerRef);
+                if (!packetBridge.usesTransportHooks(playerRef) && unhookedReported.add(playerRef.getUuid())) {
+                    LOGGER.atInfo().log("%s joined before CustomInventory started; the Tab redirect falls back to "
+                            + "packet adapters, which only run on the dedicated QUIC transport", playerRef.getUsername());
+                }
+            }
         };
         if (world.isInThread()) seed.run();
         else {

@@ -32,7 +32,7 @@ $C = "../../Common.ui";
   Visible: false;
   Group {
     Anchor: (Width: 38, Height: 38);
-    Background: (TexturePath: "MemoryLocked.png", Color: #9fb9c8(0.6));
+    Background: (TexturePath: "Textures/SlotIconMemoryLocked.png", Color: #9fb9c8(0.6));
   }
 };
 

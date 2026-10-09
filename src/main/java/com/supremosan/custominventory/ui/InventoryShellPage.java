@@ -435,6 +435,11 @@ public final class InventoryShellPage extends InteractiveCustomUIPage<InventoryS
                         .append("SessionId", pageInstanceId).append(Event.SEARCH_QUERY, "#CraftingSearch.Value"), false);
     }
 
+    /** Extension tabs reuse the client's shared recipes icon, which has no state variants. */
+    private static String tabIconPath(String icon, String state) {
+        return "Recipes".equals(icon) ? "Common/RecipesIcon.png" : "Inventory/Textures/" + icon + state + "Icon.png";
+    }
+
     private void renderTab(UICommandBuilder commands, String selector, String id, String title, boolean selected) {
         String icon = DEFAULT_PAGE.equals(id) ? "PocketCrafting" : MEMORIES_PAGE.equals(id) ? "Memories"
                 : BACKPACK_PAGE.equals(id) ? "Backpack" : "Recipes";
@@ -444,8 +449,8 @@ public final class InventoryShellPage extends InteractiveCustomUIPage<InventoryS
         commands.set(selector + ".TooltipText", DEFAULT_PAGE.equals(id) ? localized("Pocket crafting", "Fabricação de bolso")
                 : MEMORIES_PAGE.equals(id) ? localized("Collected memories", "Memórias coletadas")
                 : BACKPACK_PAGE.equals(id) ? localized("Backpack", "Mochila") : title);
-        commands.setObject(selector + " #IconInactive.Background", new PatchStyle(Value.of("Inventory/Textures/" + icon + (locked ? "Locked" : "") + "Icon.png")));
-        commands.setObject(selector + " #IconActive.Background", new PatchStyle(Value.of("Inventory/Textures/" + icon + ("Recipes".equals(icon) ? "" : "Active") + "Icon.png")));
+        commands.setObject(selector + " #IconInactive.Background", new PatchStyle(Value.of(tabIconPath(icon, locked ? "Locked" : ""))));
+        commands.setObject(selector + " #IconActive.Background", new PatchStyle(Value.of(tabIconPath(icon, "Active"))));
         int size = "Backpack".equals(icon) ? 50 : 48;
         var iconAnchor = new Anchor();
         iconAnchor.setWidth(Value.of(size)); iconAnchor.setHeight(Value.of(size));

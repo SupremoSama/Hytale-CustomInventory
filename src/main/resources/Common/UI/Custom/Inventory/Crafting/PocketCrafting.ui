@@ -73,8 +73,8 @@ Group #PocketCrafting {
               ItemPreviewComponent #RecipePreview { Anchor: (Width: 196); ItemScale: 0.7; }
               Group #ProgressBarContainer {
                 Anchor: (Height: 4, Bottom: -11);
-                Background: "Textures/ProgressBar.png";
-                ProgressBar #ProgressBar { BarTexturePath: "Textures/ProgressBarFill.png"; EffectTexturePath: "Textures/ProgressBarEffect.png"; EffectWidth: 53; EffectHeight: 30; EffectOffset: 38; }
+                Background: "../../Common/ProgressBar.png";
+                ProgressBar #ProgressBar { BarTexturePath: "../../Common/ProgressBarFill.png"; EffectTexturePath: "Textures/ProgressBarEffect.png"; EffectWidth: 53; EffectHeight: 30; EffectOffset: 38; }
               }
             }
             TextButton #Craft1Button { Anchor: (Height: 44); Text: %client.inventory.crafting.button.craft1; Style: @CraftStyle; }

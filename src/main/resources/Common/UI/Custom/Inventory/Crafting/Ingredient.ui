@@ -1,7 +1,7 @@
 $C = "../../Common.ui";
 $G = "../InventoryGridStyle.ui";
-@SlotInvalidBackground = PatchStyle(TexturePath: "Textures/IngredientSlot.png", Border: 24);
-@SlotValidBackground = PatchStyle(TexturePath: "Textures/IngredientSlotValid.png", Border: 24);
+@SlotInvalidBackground = PatchStyle(TexturePath: "../../Common/IngredientSlot.png", Border: 24);
+@SlotValidBackground = PatchStyle(TexturePath: "../../Common/IngredientSlotValid.png", Border: 24);
 // The ingredient patch owns the background. A regular ItemSlot adds the
 // inventory square over it, so use an icon-only grid for native item tooltips.
 @IngredientGridStyle = ItemGridStyle(
