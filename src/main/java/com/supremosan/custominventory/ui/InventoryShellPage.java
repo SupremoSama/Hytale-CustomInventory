@@ -250,6 +250,7 @@ public final class InventoryShellPage extends InteractiveCustomUIPage<InventoryS
         if (activeContent instanceof BackpackInventoryContent) {
             inventoryPanels.mountBackpack(activeContext, commands,
                     new InventoryEventBindings(events, "#InventoryShell", INVENTORY_PANELS, pageInstanceId), "#InventoryShell", !keepBackpackBody);
+            commands.set("#ContentHost #BackpackGrid.ShowScrollbar", backpackCapacity(activeContext) > MAX_VISIBLE_BACKPACK_SLOTS);
         }
         renderExtensions(commands, events, initial);
     }

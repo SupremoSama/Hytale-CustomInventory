@@ -34,6 +34,41 @@ $C.@Container #ExtraEquipmentPanel {
   }
 }
 
+// One eye per equipment slot, placed like PlayerPanel.ui's armor eyes (grid origin + (54, -4),
+// 74 per row). The grid origin is (8 + 2, 38 + 8) in this host. PlayerInventoryPanel shows each
+// eye only for an occupied slot, and the whole column only while the panel is expanded.
+Group #ExtraEquipmentEyes {
+  Anchor: (Left: 64, Top: 42, Width: 32, Height: 254);
+  Button #HatVisibility {
+    Anchor: (Left: 0, Top: 0, Width: 32, Height: 32);
+    TextTooltipStyle: $T.@ButtonTextTooltipStyle;
+    Visible: false;
+    Group #Visible { HitTestVisible: false; Anchor: (Full: 0); Background: "Textures/ArmorVisibilityOn.png"; }
+    Group #Hidden { HitTestVisible: false; Anchor: (Full: 0); Background: "Textures/ArmorVisibilityOff.png"; Visible: false; }
+  }
+  Button #BackpackVisibility {
+    Anchor: (Left: 0, Top: 74, Width: 32, Height: 32);
+    TextTooltipStyle: $T.@ButtonTextTooltipStyle;
+    Visible: false;
+    Group #Visible { HitTestVisible: false; Anchor: (Full: 0); Background: "Textures/ArmorVisibilityOn.png"; }
+    Group #Hidden { HitTestVisible: false; Anchor: (Full: 0); Background: "Textures/ArmorVisibilityOff.png"; Visible: false; }
+  }
+  Button #CollarVisibility {
+    Anchor: (Left: 0, Top: 148, Width: 32, Height: 32);
+    TextTooltipStyle: $T.@ButtonTextTooltipStyle;
+    Visible: false;
+    Group #Visible { HitTestVisible: false; Anchor: (Full: 0); Background: "Textures/ArmorVisibilityOn.png"; }
+    Group #Hidden { HitTestVisible: false; Anchor: (Full: 0); Background: "Textures/ArmorVisibilityOff.png"; Visible: false; }
+  }
+  Button #BeltVisibility {
+    Anchor: (Left: 0, Top: 222, Width: 32, Height: 32);
+    TextTooltipStyle: $T.@ButtonTextTooltipStyle;
+    Visible: false;
+    Group #Visible { HitTestVisible: false; Anchor: (Full: 0); Background: "Textures/ArmorVisibilityOn.png"; }
+    Group #Hidden { HitTestVisible: false; Anchor: (Full: 0); Background: "Textures/ArmorVisibilityOff.png"; Visible: false; }
+  }
+}
+
 // Expanded: a header action. Collapsed: a pull-tab beside the player panel (PlayerInventoryPanel sets the Anchor).
 Button #ExtraEquipmentToggle {
   Anchor: (Left: 70, Top: 8, Width: 24, Height: 24);

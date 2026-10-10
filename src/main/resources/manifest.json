@@ -1,7 +1,7 @@
 {
   "Group": "SupremoSama",
   "Name": "CustomInventory",
-  "Version": "0.2.0",
+  "Version": "0.3.0",
   "Description": "Extensible inventory UI framework with shared native controls and session lifecycle.",
   "Authors": [{"Name": "SupremoSama"}],
   "Main": "com.supremosan.custominventory.CustomInventoryPlugin",

@@ -41,7 +41,14 @@ public final class InventoryText {
             Map.entry("utility.select", "Select utility item"),
             Map.entry("extraequipment.title", "Gear"),
             Map.entry("extraequipment.hide", "Hide extra equipment"),
-            Map.entry("extraequipment.show", "Show extra equipment"));
+            Map.entry("extraequipment.show", "Show extra equipment"),
+            Map.entry("extraequipment.slot.hat", "Hat"),
+            Map.entry("extraequipment.slot.backpack", "Backpack"),
+            Map.entry("extraequipment.slot.collar", "Collar"),
+            Map.entry("extraequipment.slot.belt", "Belt"),
+            Map.entry("extraequipment.visible", "{0}: visible. Click to hide."),
+            Map.entry("extraequipment.hidden", "{0}: hidden. Click to show."),
+            Map.entry("extraequipment.locked", "{0}: always visible while equipped."));
 
     private InventoryText() { }
 

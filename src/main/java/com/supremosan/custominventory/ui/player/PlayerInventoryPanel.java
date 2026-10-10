@@ -14,6 +14,8 @@ import com.hypixel.hytale.server.core.modules.i18n.I18nModule;
 import com.hypixel.hytale.server.core.ui.Anchor;
 import com.hypixel.hytale.server.core.ui.Value;
 import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
+import com.supremosan.custominventory.api.EquipmentManager;
+import com.supremosan.custominventory.api.ExtraEquipment;
 import com.supremosan.custominventory.api.InventoryContentEvent;
 import com.supremosan.custominventory.api.InventoryContext;
 import com.supremosan.custominventory.api.InventoryEventBindings;
@@ -25,12 +27,18 @@ import java.util.Locale;
 import java.util.Objects;
 
 /**
- * Player preview, native statistics and armor-eye controls for an already mounted PlayerPanel.ui.
+ * Player preview, native statistics and armor-eye controls for an already mounted PlayerPanel.ui,
+ * plus the Gear panel's per-slot equipment eyes, whose state belongs to {@link EquipmentManager}.
  * CharacterPreviewComponent owns its client-side player setup; the server does not inject model data.
  * Calls execute on the owning world thread. Grid rendering/transfers remain the inventory content's job.
  */
 public final class PlayerInventoryPanel {
     public static final String TOGGLE_ARMOR_VISIBILITY = "ToggleArmorVisibility";
+    public static final String TOGGLE_EQUIPMENT_VISIBILITY = "ToggleEquipmentVisibility";
+    private static final String EQUIPMENT_HOST = "#ExtraEquipmentHost";
+    /** Indexed by ExtraEquipment slot: HAT, BACKPACK, COLLAR, BELT. */
+    private static final String[] EQUIPMENT_EYES = {"#HatVisibility", "#BackpackVisibility", "#CollarVisibility", "#BeltVisibility"};
+    private static final String[] EQUIPMENT_LABELS = {"hat", "backpack", "collar", "belt"};
     private final UtilitySlotSelector utilitySelector = new UtilitySlotSelector();
     private Snapshot snapshot;
     private String snapshotHost;
@@ -42,6 +50,10 @@ public final class PlayerInventoryPanel {
         com.supremosan.custominventory.api.ExtraEquipment.ensure(context.ref(), context.store());
         commands.append("#ExtraEquipmentHost", "Inventory/ExtraEquipment.ui");
         equipmentEvents.bind(CustomUIEventBindingType.Activating, "#ExtraEquipmentToggle", "ToggleExtraEquipment", "", false);
+        for (short slot = 0; slot < ExtraEquipment.SLOT_COUNT; slot++) {
+            equipmentEvents.bind(CustomUIEventBindingType.Activating, EQUIPMENT_EYES[slot],
+                    TOGGLE_EQUIPMENT_VISIBILITY, Short.toString(slot), true);
+        }
         for (var slot : ArmorVisibilityPreferences.Slot.values()) {
             events.bind(CustomUIEventBindingType.Activating, slot.selector(), TOGGLE_ARMOR_VISIBILITY, slot.name(), true);
         }
@@ -55,6 +67,7 @@ public final class PlayerInventoryPanel {
     /** Refresh only values/eye state without remounting the character preview or equipment grids. */
     public void refresh(InventoryContext context, UICommandBuilder commands, String hostSelector) {
         commands.set("#ExtraEquipmentPanel.Visible", equipmentVisible);
+        commands.set(EQUIPMENT_HOST + " #ExtraEquipmentEyes.Visible", equipmentVisible);
         commands.setObject("#ExtraEquipmentToggle.Anchor", extraEquipmentToggleAnchor(equipmentVisible));
         commands.set("#ExtraEquipmentToggle #TabBackground.Visible", !equipmentVisible);
         commands.set("#ExtraEquipmentToggle #CollapseIcon.Visible", equipmentVisible);
@@ -66,6 +79,7 @@ public final class PlayerInventoryPanel {
         if (Objects.equals(snapshotHost, hostSelector) && next.equals(snapshot)) return;
         commands.set(selector(hostSelector, "#PlayerName.Text"), next.name());
         updateArmorVisibility(context, commands, hostSelector, next);
+        updateEquipmentVisibility(context, commands, next);
         commands.set(selector(hostSelector, "#StatHealth.Text"), next.health());
         commands.set(selector(hostSelector, "#StatStamina.Text"), next.stamina());
         commands.set(selector(hostSelector, "#StatMana.Text"), next.mana());
@@ -91,6 +105,11 @@ public final class PlayerInventoryPanel {
             context.requestRefresh();
             return true;
         }
+        if (TOGGLE_EQUIPMENT_VISIBILITY.equals(event.action())) {
+            toggleEquipmentVisibility(context, parseEquipmentSlot(event.payload()));
+            context.requestRefresh();
+            return true;
+        }
         if (utilitySelector.handleEvent(context, event)) return true;
         if (!TOGGLE_ARMOR_VISIBILITY.equals(event.action())) return false;
         toggleArmorVisibility(context, ArmorVisibilityPreferences.Slot.parse(event.payload()));
@@ -112,6 +131,42 @@ public final class PlayerInventoryPanel {
         context.store().putComponent(context.ref(), PlayerSettings.getComponentType(), updated);
         // The native preference handler uses this flag to resend rendered equipment to the world.
         armor.setOutdatedEquipment(true);
+    }
+
+    private static Short parseEquipmentSlot(String payload) {
+        if (payload == null) return null;
+        try {
+            short slot = Short.parseShort(payload);
+            return ExtraEquipment.validSlot(slot) ? slot : null;
+        } catch (NumberFormatException invalid) {
+            return null;
+        }
+    }
+
+    /** Each eye changes only its own slot. Locked eyes and stale (empty-slot) requests are ignored. */
+    private static void toggleEquipmentVisibility(InventoryContext context, Short slot) {
+        if (slot == null || InventoryOperations.locked(context.ref(), context.store())) return;
+        if (EquipmentManager.getEquipped(context.ref(), context.store(), slot) == null
+                || !EquipmentManager.canHide(context.ref(), context.store(), slot)) return;
+        EquipmentManager.toggleVisible(context.ref(), context.store(), slot);
+    }
+
+    private static void updateEquipmentVisibility(InventoryContext context, UICommandBuilder commands, Snapshot state) {
+        String language = context.playerRef().getLanguage();
+        for (short slot = 0; slot < ExtraEquipment.SLOT_COUNT; slot++) {
+            int bit = 1 << slot;
+            boolean occupied = (state.equipmentOccupied() & bit) != 0;
+            boolean locked = (state.equipmentLocked() & bit) != 0;
+            boolean hidden = !locked && (state.equipmentHidden() & bit) != 0;
+            String mount = EQUIPMENT_HOST + " " + EQUIPMENT_EYES[slot];
+            commands.set(mount + ".Visible", occupied);
+            commands.set(mount + ".Disabled", locked);
+            commands.set(mount + " #Visible.Visible", !hidden);
+            commands.set(mount + " #Hidden.Visible", hidden);
+            String label = InventoryText.get(language, "extraequipment.slot." + EQUIPMENT_LABELS[slot]);
+            commands.set(mount + ".TooltipText", InventoryText.get(language,
+                    locked ? "extraequipment.locked" : hidden ? "extraequipment.hidden" : "extraequipment.visible", label));
+        }
     }
 
     private static void updateArmorVisibility(InventoryContext context, UICommandBuilder commands, String hostSelector,
@@ -164,8 +219,19 @@ public final class PlayerInventoryPanel {
                     ItemUtils.canApplyItemStackPenalties(context.ref(), context.store()), effects).get(physical);
             if (resistance != null) defense = Math.round(Math.clamp(resistance.multiplierModifier * 100f, 0f, 100f)) + "%";
         }
+        int equipmentOccupied = 0;
+        int equipmentHidden = 0;
+        int equipmentLocked = 0;
+        for (short slot = 0; slot < ExtraEquipment.SLOT_COUNT; slot++) {
+            if (EquipmentManager.getEquipped(context.ref(), context.store(), slot) == null) continue;
+            int bit = 1 << slot;
+            equipmentOccupied |= bit;
+            if (!EquipmentManager.isVisible(context.ref(), context.store(), slot)) equipmentHidden |= bit;
+            if (!EquipmentManager.canHide(context.ref(), context.store(), slot)) equipmentLocked |= bit;
+        }
         return new Snapshot(context.playerRef().getUsername(), context.playerRef().getLanguage(), occupiedSlots,
-                allowedSlots, hiddenSlots, statText(stats, DefaultEntityStatTypes.getHealth()),
+                allowedSlots, hiddenSlots, equipmentOccupied, equipmentHidden, equipmentLocked,
+                statText(stats, DefaultEntityStatTypes.getHealth()),
                 statText(stats, DefaultEntityStatTypes.getStamina()), statText(stats, DefaultEntityStatTypes.getMana()), defense);
     }
 
@@ -191,5 +257,6 @@ public final class PlayerInventoryPanel {
     }
 
     private record Snapshot(String name, String language, int occupiedSlots, int allowedSlots, int hiddenSlots,
+                            int equipmentOccupied, int equipmentHidden, int equipmentLocked,
                             String health, String stamina, String mana, String defense) { }
 }

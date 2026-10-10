@@ -23,6 +23,7 @@ import com.supremosan.custominventory.inventory.InventoryOperations;
 import com.supremosan.custominventory.inventory.CollectedMemoriesContent;
 import com.supremosan.custominventory.inventory.BackpackInventoryContent;
 import com.supremosan.custominventory.packet.InventoryPacketBridge;
+import com.supremosan.custominventory.render.PlayerModelRenderer;
 import com.supremosan.custominventory.ui.InventoryShellPage;
 
 import java.util.Set;
@@ -81,6 +82,12 @@ public final class CustomInventoryPlugin extends JavaPlugin {
                 com.supremosan.custominventory.api.ExtraEquipment.CODEC);
         getEntityStoreRegistry().registerSystem(new com.supremosan.custominventory.api.ExtraEquipment.Changes());
         getEntityStoreRegistry().registerSystem(new com.supremosan.custominventory.inventory.ExtraEquipmentDeathSystem());
+        getEntityStoreRegistry().registerSystem(new com.supremosan.custominventory.api.EquipmentManager.Dispatcher());
+        // The only writer of player models for equipment and mod attachments.
+        getEntityStoreRegistry().registerSystem(new PlayerModelRenderer.OnPlayerSettingsChange());
+        getEntityStoreRegistry().registerSystem(new PlayerModelRenderer.OnPlayerSkinChange());
+        getEntityStoreRegistry().registerSystem(new PlayerModelRenderer.OnModelChange());
+        getEntityStoreRegistry().registerSystem(new PlayerModelRenderer.OnArmorChange());
         running = true;
         registryListener = registry.onChange(() -> { for (var page : sessions) page.refreshRegistrations(); });
         registry.registerInventoryPage(new InventoryPageDefinition(InventoryShellPage.DEFAULT_PAGE,
@@ -93,6 +100,7 @@ public final class CustomInventoryPlugin extends JavaPlugin {
         getEventRegistry().registerGlobal(PlayerReadyEvent.class, this::onPlayerReady);
         getEventRegistry().registerGlobal(PlayerDisconnectEvent.class, event -> {
             unhookedReported.remove(event.getPlayerRef().getUuid());
+            PlayerModelRenderer.onPlayerLeave(event.getPlayerRef().getUuid());
             packetBridge.disconnect(event.getPlayerRef());
             for (var page : sessions) if (page.belongsTo(event.getPlayerRef())) page.closeForShutdown();
         });
@@ -126,7 +134,9 @@ public final class CustomInventoryPlugin extends JavaPlugin {
         Runnable seed = () -> {
             if (!running || !ref.isValid() || ref.getStore() != store) return;
             var playerRef = store.getComponent(ref, PlayerRef.getComponentType());
-            com.supremosan.custominventory.api.ExtraEquipment.ensure(ref, store);
+            // Saved players load with occupied slots; listeners must rebuild their visuals.
+            com.supremosan.custominventory.api.EquipmentManager.announce(ref, store);
+            PlayerModelRenderer.onPlayerReady(ref, store);
             if (playerRef != null && playerRef.getReference() == ref) {
                 packetBridge.synchronizeGameMode(playerRef);
                 if (!packetBridge.usesTransportHooks(playerRef) && unhookedReported.add(playerRef.getUuid())) {
@@ -173,6 +183,7 @@ public final class CustomInventoryPlugin extends JavaPlugin {
         for (var page : sessions) page.closeForShutdown();
         sessions.clear();
         registry.clear();
+        PlayerModelRenderer.clear();
         if (instance == this) instance = null;
     }
 }

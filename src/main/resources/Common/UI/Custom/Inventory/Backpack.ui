@@ -11,6 +11,7 @@ ItemGrid #BackpackGrid {
   Background: #202c3b(0);
   Padding: (Left: 2, Top: 2, Right: 0, Bottom: 2);
   ScrollbarStyle: $C.@DefaultScrollbarStyle;
-  ShowScrollbar: true;
+  // Shown by InventoryShellPage only when the backpack has more slots than fit.
+  ShowScrollbar: false;
   KeepScrollPosition: true;
 }
