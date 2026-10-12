@@ -1,12 +1,13 @@
 {
   "Group": "SupremoSama",
   "Name": "CustomInventory",
-  "Version": "0.3.0",
+  "Version": "0.1.0",
   "Description": "Extensible inventory UI framework with shared native controls and session lifecycle.",
   "Authors": [{"Name": "SupremoSama"}],
-  "Main": "com.supremosan.custominventory.CustomInventoryPlugin",
-  "ServerVersion": ">=0.7.0-pre.5.1",
+  "Website": "",
+  "ServerVersion": ">=0.7.0 <0.8.0",
+  "OptionalDependencies": {},
+  "DisabledByDefault": false,
   "IncludesAssetPack": true,
-  "Dependencies": {},
-  "OptionalDependencies": {}
+  "Main": "com.supremosan.custominventory.CustomInventoryPlugin"
 }
