@@ -13,7 +13,7 @@ version = "0.1.0"
 val installedServer = providers.gradleProperty("hytaleServerJar")
     .orElse(providers.environmentVariable("HYTALE_SERVER_JAR"))
     .orElse(providers.environmentVariable("APPDATA").map {
-        "$it/Hytale/install/pre-release/package/game/latest/Server/HytaleServer.jar"
+        "$it/Hytale/install/release/package/game/latest/Server/HytaleServer.jar"
     })
 val engineFiles = files(installedServer)
 
