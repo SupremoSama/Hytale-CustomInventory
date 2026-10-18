@@ -192,6 +192,9 @@ public final class InventoryShellPage extends InteractiveCustomUIPage<InventoryS
         if (initial) {
             var backdropEvents = new InventoryEventBindings(events, "#InventoryBackdrop", INVENTORY_PANELS, pageInstanceId);
             backdropEvents.bind(CustomUIEventBindingType.Dropped, "#InventoryDropZone", "DropOutside", "", false);
+            var hintsEvents = new InventoryEventBindings(events, "#InventoryHelpHints", INVENTORY_PANELS, pageInstanceId);
+            hintsEvents.bind(CustomUIEventBindingType.Activating, "#InventoryDropButton", "DropSelected", "", false);
+            hintsEvents.bind(CustomUIEventBindingType.Activating, "#InventoryDropButtonActive", "DropSelected", "", false);
             playerPanel.build(activeContext, commands,
                     new InventoryEventBindings(events, "#PlayerPanelHost", PLAYER_PANEL, pageInstanceId),
                     new InventoryEventBindings(events, "#ExtraEquipmentHost", PLAYER_PANEL, pageInstanceId), "#PlayerPanelHost");
@@ -522,7 +525,8 @@ public final class InventoryShellPage extends InteractiveCustomUIPage<InventoryS
     public void handleDataEvent(Ref<EntityStore> ref, Store<EntityStore> store, Event event) {
         boolean panelEvent = "Content".equals(event.action)
                 && (INVENTORY_PANELS.equals(event.pageId) || PLAYER_PANEL.equals(event.pageId));
-        boolean persistentEvent = panelEvent || "Close".equals(event.action) || "Map".equals(event.action) || "Refresh".equals(event.action)
+        boolean persistentEvent = panelEvent || "Close".equals(event.action) || "Map".equals(event.action)
+                || "Chapters".equals(event.action) || "Refresh".equals(event.action)
                 || "CraftingHeader".equals(event.action) || "BackpackHeader".equals(event.action)
                 || "Content".equals(event.action) && (hostedView != null || event.pageId != null && event.pageId.startsWith("@extension:"));
         // Content bound once at mount keeps working across refreshes; a rebuild or rebind invalidates older events.
