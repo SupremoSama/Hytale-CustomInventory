@@ -19,6 +19,7 @@ $K = "InputBinding.ui";
 @NavigationButton = Button {
   @Text = "";
   @Binding = "";
+  @HasBinding = true;
   @LabelStyle = @NavigationLabelStyle;
   @ButtonStyle = @NavigationButtonStyle;
   @Disabled = false;
@@ -37,7 +38,8 @@ $K = "InputBinding.ui";
     Label #Name { Style: @LabelStyle; Text: @Text; }
     // Native ActionButton keeps the 10px gap on its outer container, so it
     // does not reduce the binding chip's measured minimum width.
-    Group {
+    Group #BindingGroup {
+      Visible: @HasBinding;
       Anchor: (Left: 10, Height: 28);
       LayoutMode: Left;
       $K.@KeyChip #Binding {
@@ -67,6 +69,10 @@ Group #InventoryNavigation {
       @NavigationButton #NavigationMapButton {
         @Text = %client.gamePageNavigation.buttons.Map;
         @Binding = "M";
+      }
+      @NavigationButton #NavigationChaptersButton {
+        @Text = %client.gamePageNavigation.buttons.Chapters;
+        @HasBinding = false;
       }
       @NavigationButton #NavigationCreativeButton {
         @Text = %client.gamePageNavigation.buttons.ContentCreation;

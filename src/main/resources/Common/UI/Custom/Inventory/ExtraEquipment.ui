@@ -13,13 +13,6 @@ $T = "TooltipStyle.ui";
 $C.@Container #ExtraEquipmentPanel {
   @ContentPadding = Padding(Full: 8);
   Anchor: (Left: 0, Top: 0, Width: 98, Height: 362);
-  #Title {
-    Label #ExtraEquipmentTitle {
-      Anchor: (Left: 8, Right: 28);
-      Text: %server.custominventory.extraequipment.title;
-      Style: (FontName: "Secondary", FontSize: 13, RenderBold: true, RenderUppercase: true, TextColor: #b4c8c9, HorizontalAlignment: Center, VerticalAlignment: Center, ShrinkTextToFit: true, MinShrinkTextToFitFontSize: 8, LetterSpacing: 0);
-    }
-  }
   #Content {
     ItemGrid #ExtraEquipmentGrid {
       Anchor: (Left: 2, Width: 78, Height: 308);

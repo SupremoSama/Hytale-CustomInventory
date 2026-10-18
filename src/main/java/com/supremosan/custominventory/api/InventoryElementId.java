@@ -8,7 +8,8 @@ public enum InventoryElementId {
     CONTENT_HOST("#ContentHost", true), HEADER_ACTIONS("#PageHeaderActions", true),
     NAVIGATION("#Navigation", true), EXTENSION_BUTTONS("#ExtensionButtons", true), AUXILIARY_HOST("#AuxiliaryHost", true),
     CLOSE_BUTTON("#CloseButton"), BACK_BUTTON("#InventoryBackButton"),
-    INVENTORY_MENU("#NavigationInventoryButton"), MAP_MENU("#NavigationMapButton"), CREATIVE_MENU("#NavigationCreativeButton");
+    INVENTORY_MENU("#NavigationInventoryButton"), MAP_MENU("#NavigationMapButton"),
+    CHAPTERS_MENU("#NavigationChaptersButton"), CREATIVE_MENU("#NavigationCreativeButton");
 
     private final String selector;
     private final boolean extensionHost;

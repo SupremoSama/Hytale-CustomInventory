@@ -7,6 +7,7 @@ import com.hypixel.hytale.protocol.Packet;
 import com.hypixel.hytale.protocol.ToServerPacket;
 import com.hypixel.hytale.protocol.packets.interface_.CustomPageEvent;
 import com.hypixel.hytale.protocol.packets.inventory.DropItemStack;
+import com.hypixel.hytale.protocol.packets.inventory.SmartMoveItemStack;
 import com.hypixel.hytale.protocol.packets.window.ClientOpenWindow;
 import com.hypixel.hytale.protocol.packets.window.CloseWindow;
 import com.hypixel.hytale.server.core.entity.entities.Player;
@@ -64,7 +65,8 @@ final class InventoryPacketHooks implements SubPacketHandler {
 
     static boolean isHookedPacket(Packet packet) {
         return packet instanceof ClientOpenWindow || packet instanceof CloseWindow
-                || packet instanceof CustomPageEvent || packet instanceof DropItemStack;
+                || packet instanceof CustomPageEvent || packet instanceof DropItemStack
+                || packet instanceof SmartMoveItemStack;
     }
 
     @Override
@@ -80,6 +82,7 @@ final class InventoryPacketHooks implements SubPacketHandler {
         hook(game, CustomPageEvent.PACKET_ID, packet -> game.handle((CustomPageEvent) packet));
         var inventory = game.getSubPacketHandler(InventoryPacketHandler.class);
         if (inventory != null) hook(game, DropItemStack.PACKET_ID, packet -> inventory.handle((DropItemStack) packet));
+        if (inventory != null) hook(game, SmartMoveItemStack.PACKET_ID, packet -> inventory.handle((SmartMoveItemStack) packet));
         HOOKED.add(game);
     }
 

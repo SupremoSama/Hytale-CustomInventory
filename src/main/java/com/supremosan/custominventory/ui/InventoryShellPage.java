@@ -15,6 +15,7 @@ import com.hypixel.hytale.protocol.packets.interface_.CustomPageLifetime;
 import com.hypixel.hytale.protocol.packets.interface_.CustomUIEventBindingType;
 import com.hypixel.hytale.protocol.packets.interface_.Page;
 import com.hypixel.hytale.protocol.packets.inventory.DropItemStack;
+import com.hypixel.hytale.protocol.packets.inventory.SmartMoveItemStack;
 import com.hypixel.hytale.server.core.HytaleServer;
 import com.hypixel.hytale.builtin.adventure.memories.component.PlayerMemories;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
@@ -200,6 +201,7 @@ public final class InventoryShellPage extends InteractiveCustomUIPage<InventoryS
             events.addEventBinding(CustomUIEventBindingType.Activating, "#NavigationInventoryButton", persistentCoreEvent("Close"));
             events.addEventBinding(CustomUIEventBindingType.Activating, "#InventoryBackButton", persistentCoreEvent("Close"));
             events.addEventBinding(CustomUIEventBindingType.Activating, "#NavigationMapButton", persistentCoreEvent("Map"));
+            events.addEventBinding(CustomUIEventBindingType.Activating, "#NavigationChaptersButton", persistentCoreEvent("Chapters"));
             events.addEventBinding(CustomUIEventBindingType.Activating, "#RefreshButton", persistentCoreEvent("Refresh"));
         } else {
             inventoryPanels.refresh(activeContext, commands, "#InventoryShell");
@@ -537,6 +539,7 @@ public final class InventoryShellPage extends InteractiveCustomUIPage<InventoryS
                     store.getComponent(ref, Player.getComponentType()).getPageManager().setPage(ref, store, Page.Map);
                 }
             }
+            case "Chapters" -> store.getComponent(ref, Player.getComponentType()).getPageManager().setPage(ref, store, Page.Chapters);
             case "Refresh" -> requestRefresh();
             case "CraftingHeader", "BackpackHeader" -> {
                 if (activeRegistration != registry.getPageRegistration(pageId)) return;
@@ -598,9 +601,10 @@ public final class InventoryShellPage extends InteractiveCustomUIPage<InventoryS
                             return;
                         }
                     }
-                    if ("DragSource".equals(event.contentAction) || "UtilityWheelDragSource".equals(event.contentAction)
+                    if (!inventoryPanels.hasPendingReleasedSources()
+                            && ("DragSource".equals(event.contentAction) || "UtilityWheelDragSource".equals(event.contentAction)
                             || "CancelDrag".equals(event.contentAction)
-                            || ("DragPress".equals(event.contentAction) && !contentEvent.rightMouseButton())) {
+                            || ("DragPress".equals(event.contentAction) && !contentEvent.rightMouseButton()))) {
                         var commands = new UICommandBuilder();
                         inventoryPanels.refreshDropAction(activeContext, commands);
                         sendPresentationUpdate(ref, store, commands);
@@ -671,6 +675,13 @@ public final class InventoryShellPage extends InteractiveCustomUIPage<InventoryS
 
     public void dropHoveredItem(Ref<EntityStore> ref, Store<EntityStore> store) {
         dropHoveredItem(ref, store, null);
+    }
+
+    public void smartMoveItem(Ref<EntityStore> ref, Store<EntityStore> store, SmartMoveItemStack packet) {
+        if (dismissed || !isActive(ref, store) || !remainInAdventure(ref, store) || packet == null) return;
+        inventoryPanels.handleEvent(activeContext, new InventoryContentEvent("QuickMove",
+                Integer.toString(packet.fromSectionId), packet.fromSlotId));
+        requestRefresh();
     }
 
     private void sendPresentationUpdate(Ref<EntityStore> ref, Store<EntityStore> store, UICommandBuilder commands) {

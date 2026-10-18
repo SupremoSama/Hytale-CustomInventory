@@ -9,6 +9,7 @@ import com.hypixel.hytale.protocol.packets.interface_.Page;
 import com.hypixel.hytale.protocol.packets.interface_.CustomPageEvent;
 import com.hypixel.hytale.protocol.packets.interface_.CustomPageEventType;
 import com.hypixel.hytale.protocol.packets.inventory.DropItemStack;
+import com.hypixel.hytale.protocol.packets.inventory.SmartMoveItemStack;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.io.adapter.PacketAdapters;
 import com.hypixel.hytale.server.core.io.adapter.PacketFilter;
@@ -42,7 +43,7 @@ public final class InventoryPacketBridge implements AutoCloseable {
     private volatile boolean registered;
     private volatile boolean closed;
     private final java.util.concurrent.atomic.AtomicInteger gestureTraceBudget =
-            new java.util.concurrent.atomic.AtomicInteger(Boolean.getBoolean("custominventory.traceGestures") ? 250 : 0);
+            new java.util.concurrent.atomic.AtomicInteger(Integer.MAX_VALUE);
 
     public InventoryPacketBridge(InventoryOpener opener) {
         this.opener = Objects.requireNonNull(opener);
@@ -99,6 +100,13 @@ public final class InventoryPacketBridge implements AutoCloseable {
                 var context = currentContext(playerRef);
                 var page = ownedPage(context);
                 if (page != null) page.dropHoveredItem(context.ref(), context.store(), dropPacket);
+            }
+
+            @Override
+            public void smartMoveInventoryItem(PlayerRef playerRef, SmartMoveItemStack smartPacket) {
+                var context = currentContext(playerRef);
+                var page = ownedPage(context);
+                if (page != null) page.smartMoveItem(context.ref(), context.store(), smartPacket);
             }
 
             @Override

@@ -1,6 +1,7 @@
 package com.supremosan.custominventory.inventory;
 
 import com.hypixel.hytale.event.EventRegistration;
+import com.hypixel.hytale.logger.HytaleLogger;
 import com.hypixel.hytale.protocol.PickupLocation;
 import com.hypixel.hytale.protocol.packets.interface_.CustomUIEventBindingType;
 import com.hypixel.hytale.server.core.inventory.InventoryComponent;
@@ -13,6 +14,7 @@ import com.hypixel.hytale.server.core.ui.ItemGridSlot;
 import com.hypixel.hytale.server.core.ui.Value;
 import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.supremosan.custominventory.CustomInventoryPlugin;
+import com.supremosan.custominventory.api.ExtraEquipment;
 import com.supremosan.custominventory.api.InventoryContent;
 import com.supremosan.custominventory.api.InventoryContentEvent;
 import com.supremosan.custominventory.api.InventoryContext;
@@ -34,6 +36,7 @@ import java.util.concurrent.TimeUnit;
 
 /** Persistent native grids with detached drag snapshots shared by every inventory section. */
 public final class NativeInventoryContent implements InventoryContent {
+    private static final HytaleLogger LOGGER = HytaleLogger.forEnclosingClass();
     private static final List<NativeInventorySection> PERSISTENT_SECTIONS = List.of(
             NativeInventorySection.STORAGE, NativeInventorySection.HOTBAR,
             NativeInventorySection.ARMOR, NativeInventorySection.UTILITY, NativeInventorySection.EXTRA);
@@ -362,6 +365,12 @@ public final class NativeInventoryContent implements InventoryContent {
 
     @Override
     public void handleEvent(InventoryContext context, InventoryContentEvent event) {
+        if (event != null && event.action() != null && !"HoverSource".equals(event.action())
+                && !"UtilityWheelHover".equals(event.action()) && !"UnhoverSource".equals(event.action())
+                && !"UtilityWheelUnhover".equals(event.action())) {
+            LOGGER.atInfo().log("[CustomInventory] handleEvent: action=%s, payload=%s, slot=%s, shiftHeld=%s, rmb=%s",
+                    event.action(), event.payload(), event.slotIndex(), event.shiftHeld(), event.rightMouseButton());
+        }
         if (event.mouseButton() != null && !event.rightMouseButton() && !isLeftButton(event)) {
             // Middle/auxiliary buttons belong to native resizing and must not place a stack.
             boolean slotClick = switch (event.action() == null ? "" : event.action()) {
@@ -414,6 +423,19 @@ public final class NativeInventoryContent implements InventoryContent {
             NativeInventorySection targetSection = NativeInventorySection.parse(event.payload());
             if (targetSection != null && event.slotIndex() != null) {
                 combineItemStacks(context, targetSection, event.slotIndex());
+            }
+            return;
+        }
+        if ("QuickMove".equals(event.action())) {
+            if (context == null || event.slotIndex() == null || event.payload() == null || event.payload().isBlank()) return;
+            NativeInventorySection sourceSection = null;
+            try {
+                sourceSection = NativeInventorySection.fromId(Integer.parseInt(event.payload().trim()));
+            } catch (NumberFormatException ignored) {
+                sourceSection = NativeInventorySection.parse(event.payload());
+            }
+            if (sourceSection != null && !InventoryOperations.locked(context.ref(), context.store())) {
+                quickMove(context, sourceSection, event.slotIndex());
             }
             return;
         }
@@ -585,7 +607,12 @@ public final class NativeInventoryContent implements InventoryContent {
                     : InventorySelection.fromDisplayed(target, displayedContainers.get(target), slot, slots[slot]);
             // The same click callback can accompany placement onto an empty slot.
             // An empty destination must not erase the source carried by the client.
-            if (captured == null) return;
+            if (captured == null) {
+                LOGGER.atInfo().log("[CustomInventory] DragSource on empty/invalid slot: target=%s, slot=%s", target, slot);
+                return;
+            }
+            LOGGER.atInfo().log("[CustomInventory] DragSource: target=%s, slot=%s, item=%s x%d, shiftHeld=%s",
+                    target, slot, captured.itemId(), captured.quantity(), event.shiftHeld());
             int sourceGrid = target == NativeInventorySection.UTILITY
                     ? wheel ? UtilitySlotProjection.wheelGridId(captured.slot()) : UtilitySlotProjection.CENTER_GRID_ID : target.id();
             var key = new DragKey(sourceGrid, event.slotIndex());
@@ -786,10 +813,14 @@ public final class NativeInventoryContent implements InventoryContent {
                 : section == NativeInventorySection.UTILITY
                 ? UtilitySlotProjection.sourceIndex(event.slotIndex(), displayedUtilitySlot, slots.length, origin) : event.slotIndex();
         boolean sameSlot = origin.section() == section && slot != null && origin.slot() == slot;
-        if (!completesShiftSourceRelease(shiftSourceGesture, event.shiftHeld(), event.rightMouseButton(), sameSlot)) {
+        boolean matches = completesShiftSourceRelease(shiftSourceGesture, event.shiftHeld(), event.rightMouseButton(), sameSlot);
+        LOGGER.atInfo().log("[CustomInventory] completeSourceRelease check: origin=%s:%s, target=%s:%s, shiftGesture=%s, shiftHeld=%s, matches=%s",
+                origin.section(), origin.slot(), section, slot, shiftSourceGesture, event.shiftHeld(), matches);
+        if (!matches) {
             return false;
         }
 
+        LOGGER.atInfo().log("[CustomInventory] completeSourceRelease triggering quickMove for %s:%s", section, slot);
         if (context != null && !InventoryOperations.locked(context.ref(), context.store())) quickMove(context, section, slot);
 
         releasedSources.add(section);
@@ -1007,106 +1038,169 @@ public final class NativeInventoryContent implements InventoryContent {
 
     /** Native shift-click destination rules, shared by shift-release and shift-drag. */
     private void quickMove(InventoryContext context, NativeInventorySection section, Integer slot) {
-        if (section == NativeInventorySection.EXTRA) {
-            var source = displayedContainers.get(section);
-            var storage = InventoryOperations.resolveContainer(context.ref(), context.store(), NativeInventorySection.STORAGE);
-            if (slot != null && InventoryOperations.validSlot(source, slot) && storage != null) {
-                source.moveItemStackFromSlot(slot.shortValue(), storage);
-                releasedSources.add(section);
-                releasedSources.add(NativeInventorySection.STORAGE);
-                context.requestRefresh();
-            }
+        if (context == null || section == null || slot == null) {
+            LOGGER.atInfo().log("[CustomInventory] quickMove early return: context=%s, section=%s, slot=%s",
+                    context != null, section, slot);
             return;
         }
-        ItemContainer bpContainer = displayedContainers.get(NativeInventorySection.BACKPACK);
-        boolean backpackOpen = bpContainer != null;
-        if (backpackOpen) {
-            if (section == NativeInventorySection.STORAGE || section == NativeInventorySection.HOTBAR) {
-                ItemContainer sourceContainer = displayedContainers.get(section);
-                if (sourceContainer == null) {
-                    sourceContainer = InventoryOperations.resolveContainer(context.ref(), context.store(), section);
-                }
-                if (sourceContainer != null && slot != null && slot >= 0 && slot < sourceContainer.getCapacity()) {
-                    ItemStack sourceStack = sourceContainer.getItemStack(slot.shortValue());
-                    if (!ItemStack.isEmpty(sourceStack)) {
-                        sourceContainer.moveItemStackFromSlot(slot.shortValue(), sourceStack.getQuantity(), bpContainer);
-                        releasedSources.add(section);
-                        releasedSources.add(NativeInventorySection.BACKPACK);
-                        context.requestRefresh();
-                    }
-                }
-            } else if (section == NativeInventorySection.BACKPACK) {
-                if (slot != null && slot >= 0 && slot < bpContainer.getCapacity()) {
-                    ItemStack sourceStack = bpContainer.getItemStack(slot.shortValue());
-                    if (!ItemStack.isEmpty(sourceStack)) {
-                        PickupLocation pickupPref = PickupLocation.Storage;
-                        try {
-                            var entityModule = com.hypixel.hytale.server.core.modules.entity.EntityModule.get();
-                            if (entityModule != null) {
-                                var settingsType = entityModule.getPlayerSettingsComponentType();
-                                if (settingsType != null) {
-                                    var settings = context.store().getComponent(context.ref(), settingsType);
-                                    if (settings != null) {
-                                        pickupPref = settings.miscItemsPreferredPickupLocation();
-                                    }
-                                }
-                            }
-                        } catch (Throwable ignored) {}
-                        ItemContainer storage = displayedContainers.get(NativeInventorySection.STORAGE);
-                        if (storage == null) storage = InventoryOperations.resolveContainer(context.ref(), context.store(), NativeInventorySection.STORAGE);
-                        ItemContainer hotbar = displayedContainers.get(NativeInventorySection.HOTBAR);
-                        if (hotbar == null) hotbar = InventoryOperations.resolveContainer(context.ref(), context.store(), NativeInventorySection.HOTBAR);
+        ItemContainer sourceContainer = displayedContainers.get(section);
+        if (sourceContainer == null) {
+            sourceContainer = InventoryOperations.resolveContainer(context.ref(), context.store(), section);
+        }
+        if (sourceContainer == null || !InventoryOperations.validSlot(sourceContainer, slot)) {
+            LOGGER.atWarning().log("[CustomInventory] quickMove invalid source: container=%s, validSlot=%s",
+                    sourceContainer != null, sourceContainer != null && InventoryOperations.validSlot(sourceContainer, slot));
+            return;
+        }
 
-                        if (storage != null && hotbar != null) {
-                            if (pickupPref == PickupLocation.Hotbar) {
-                                bpContainer.moveItemStackFromSlot(slot.shortValue(), sourceStack.getQuantity(), hotbar, storage);
-                            } else {
-                                bpContainer.moveItemStackFromSlot(slot.shortValue(), sourceStack.getQuantity(), storage, hotbar);
-                            }
-                        } else if (storage != null) {
-                            bpContainer.moveItemStackFromSlot(slot.shortValue(), sourceStack.getQuantity(), storage);
-                        } else if (hotbar != null) {
-                            bpContainer.moveItemStackFromSlot(slot.shortValue(), sourceStack.getQuantity(), hotbar);
-                        }
-                        releasedSources.add(NativeInventorySection.BACKPACK);
-                        releasedSources.add(NativeInventorySection.STORAGE);
-                        releasedSources.add(NativeInventorySection.HOTBAR);
-                        context.requestRefresh();
-                    }
-                }
+        ItemStack sourceStack = sourceContainer.getItemStack(slot.shortValue());
+        if (ItemStack.isEmpty(sourceStack)) {
+            LOGGER.atInfo().log("[CustomInventory] quickMove aborted: slot %s in %s is empty", slot, section);
+            return;
+        }
+        LOGGER.atInfo().log("[CustomInventory] quickMove starting: section=%s, slot=%s, item=%s x%d",
+                section, slot, sourceStack.getItemId(), sourceStack.getQuantity());
+
+        ItemContainer storageContainer = displayedContainers.get(NativeInventorySection.STORAGE);
+        if (storageContainer == null) storageContainer = InventoryOperations.resolveContainer(context.ref(), context.store(), NativeInventorySection.STORAGE);
+        ItemContainer hotbarContainer = displayedContainers.get(NativeInventorySection.HOTBAR);
+        if (hotbarContainer == null) hotbarContainer = InventoryOperations.resolveContainer(context.ref(), context.store(), NativeInventorySection.HOTBAR);
+
+        if (section == NativeInventorySection.EXTRA || section == NativeInventorySection.ARMOR || section == NativeInventorySection.UTILITY) {
+            LOGGER.atInfo().log("[CustomInventory] quickMove unequipping from %s to storage/hotbar", section);
+            if (storageContainer != null && hotbarContainer != null) {
+                sourceContainer.moveItemStackFromSlot(slot.shortValue(), sourceStack.getQuantity(), storageContainer, hotbarContainer);
+            } else if (storageContainer != null) {
+                sourceContainer.moveItemStackFromSlot(slot.shortValue(), sourceStack.getQuantity(), storageContainer);
+            } else if (hotbarContainer != null) {
+                sourceContainer.moveItemStackFromSlot(slot.shortValue(), sourceStack.getQuantity(), hotbarContainer);
             }
-        } else {
-            if (section == NativeInventorySection.STORAGE) {
-                ItemContainer storageContainer = displayedContainers.get(NativeInventorySection.STORAGE);
-                if (storageContainer == null) storageContainer = InventoryOperations.resolveContainer(context.ref(), context.store(), NativeInventorySection.STORAGE);
-                ItemContainer hotbarContainer = displayedContainers.get(NativeInventorySection.HOTBAR);
-                if (hotbarContainer == null) hotbarContainer = InventoryOperations.resolveContainer(context.ref(), context.store(), NativeInventorySection.HOTBAR);
-                if (storageContainer != null && hotbarContainer != null && slot != null && slot >= 0 && slot < storageContainer.getCapacity()) {
-                    ItemStack sourceStack = storageContainer.getItemStack(slot.shortValue());
-                    if (!ItemStack.isEmpty(sourceStack)) {
-                        storageContainer.moveItemStackFromSlot(slot.shortValue(), sourceStack.getQuantity(), hotbarContainer);
-                        releasedSources.add(NativeInventorySection.STORAGE);
-                        releasedSources.add(NativeInventorySection.HOTBAR);
+            releasedSources.add(section);
+            releasedSources.add(NativeInventorySection.STORAGE);
+            releasedSources.add(NativeInventorySection.HOTBAR);
+            context.requestRefresh();
+            return;
+        }
+
+        // 1. Try to equip as armor if the respective slot is empty
+        ItemContainer armorContainer = displayedContainers.get(NativeInventorySection.ARMOR);
+        if (armorContainer == null) armorContainer = InventoryOperations.resolveContainer(context.ref(), context.store(), NativeInventorySection.ARMOR);
+        if (armorContainer != null && sourceStack.getItem() != null) {
+            var itemArmor = sourceStack.getItem().getArmor();
+            if (itemArmor != null && itemArmor.getArmorSlot() != null) {
+                short armorSlot = (short) itemArmor.getArmorSlot().ordinal();
+                boolean slotEmpty = armorSlot >= 0 && armorSlot < armorContainer.getCapacity() && ItemStack.isEmpty(armorContainer.getItemStack(armorSlot));
+                LOGGER.atInfo().log("[CustomInventory] quickMove checking armor: armorSlot=%d, isEmpty=%s", armorSlot, slotEmpty);
+                if (slotEmpty) {
+                    var tx = sourceContainer.moveItemStackFromSlotToSlot(slot.shortValue(), sourceStack.getQuantity(), armorContainer, armorSlot);
+                    LOGGER.atInfo().log("[CustomInventory] quickMove armor equip result: %s", tx != null && tx.succeeded());
+                    if (tx != null && tx.succeeded()) {
+                        releasedSources.add(section);
+                        releasedSources.add(NativeInventorySection.ARMOR);
                         context.requestRefresh();
-                    }
-                }
-            } else if (section == NativeInventorySection.HOTBAR) {
-                ItemContainer hotbarContainer = displayedContainers.get(NativeInventorySection.HOTBAR);
-                if (hotbarContainer == null) hotbarContainer = InventoryOperations.resolveContainer(context.ref(), context.store(), NativeInventorySection.HOTBAR);
-                ItemContainer storageContainer = displayedContainers.get(NativeInventorySection.STORAGE);
-                if (storageContainer == null) storageContainer = InventoryOperations.resolveContainer(context.ref(), context.store(), NativeInventorySection.STORAGE);
-                if (hotbarContainer != null && storageContainer != null && slot != null && slot >= 0 && slot < hotbarContainer.getCapacity()) {
-                    ItemStack sourceStack = hotbarContainer.getItemStack(slot.shortValue());
-                    if (!ItemStack.isEmpty(sourceStack)) {
-                        hotbarContainer.moveItemStackFromSlot(slot.shortValue(), sourceStack.getQuantity(), storageContainer);
-                        releasedSources.add(NativeInventorySection.HOTBAR);
-                        releasedSources.add(NativeInventorySection.STORAGE);
-                        context.requestRefresh();
+                        return;
                     }
                 }
             }
         }
-    
+
+        // 2. Try to equip to ExtraEquipment if the respective slot is empty
+        ItemContainer extraContainer = displayedContainers.get(NativeInventorySection.EXTRA);
+        if (extraContainer == null) extraContainer = InventoryOperations.resolveContainer(context.ref(), context.store(), NativeInventorySection.EXTRA);
+        if (extraContainer != null) {
+            for (short extraSlot = 0; extraSlot < ExtraEquipment.SLOT_COUNT; extraSlot++) {
+                boolean accepts = ExtraEquipment.accepts(extraSlot, sourceStack);
+                boolean slotEmpty = ItemStack.isEmpty(extraContainer.getItemStack(extraSlot));
+                if (accepts) {
+                    LOGGER.atInfo().log("[CustomInventory] quickMove checking extra slot %d: accepts=true, isEmpty=%s", extraSlot, slotEmpty);
+                }
+                if (slotEmpty && accepts) {
+                    var tx = sourceContainer.moveItemStackFromSlotToSlot(slot.shortValue(), sourceStack.getQuantity(), extraContainer, extraSlot);
+                    LOGGER.atInfo().log("[CustomInventory] quickMove extra equip result: %s", tx != null && tx.succeeded());
+                    if (tx != null && tx.succeeded()) {
+                        releasedSources.add(section);
+                        releasedSources.add(NativeInventorySection.EXTRA);
+                        context.requestRefresh();
+                        return;
+                    }
+                }
+            }
+        }
+
+        // 3. Normal container transfer based on whether Backpack UI is opened or closed
+        ItemContainer bpContainer = displayedContainers.get(NativeInventorySection.BACKPACK);
+        boolean backpackOpen = bpContainer != null;
+        LOGGER.atInfo().log("[CustomInventory] quickMove container transfer: section=%s, backpackOpen=%s", section, backpackOpen);
+        if (backpackOpen) {
+            // Backpack UI opened:
+            // - hotbar to backpack
+            // - inventory (storage) to backpack
+            // - backpack to inventory (storage)
+            if (section == NativeInventorySection.STORAGE || section == NativeInventorySection.HOTBAR) {
+                var tx = sourceContainer.moveItemStackFromSlot(slot.shortValue(), sourceStack.getQuantity(), bpContainer);
+                LOGGER.atInfo().log("[CustomInventory] quickMove %s -> BACKPACK remainder: %s", section,
+                        tx != null && tx.getAddTransaction() != null ? tx.getAddTransaction().getRemainder() : "null");
+                releasedSources.add(section);
+                releasedSources.add(NativeInventorySection.BACKPACK);
+                context.requestRefresh();
+                return;
+            } else if (section == NativeInventorySection.BACKPACK) {
+                LOGGER.atInfo().log("[CustomInventory] quickMove BACKPACK -> STORAGE");
+                if (storageContainer != null && hotbarContainer != null) {
+                    sourceContainer.moveItemStackFromSlot(slot.shortValue(), sourceStack.getQuantity(), storageContainer, hotbarContainer);
+                } else if (storageContainer != null) {
+                    sourceContainer.moveItemStackFromSlot(slot.shortValue(), sourceStack.getQuantity(), storageContainer);
+                } else if (hotbarContainer != null) {
+                    sourceContainer.moveItemStackFromSlot(slot.shortValue(), sourceStack.getQuantity(), hotbarContainer);
+                }
+                releasedSources.add(NativeInventorySection.BACKPACK);
+                releasedSources.add(NativeInventorySection.STORAGE);
+                releasedSources.add(NativeInventorySection.HOTBAR);
+                context.requestRefresh();
+                return;
+            }
+        } else {
+            // Backpack UI closed:
+            // - hotbar to inventory (storage)
+            // - inventory (storage) to hotbar
+            if (section == NativeInventorySection.STORAGE) {
+                LOGGER.atInfo().log("[CustomInventory] quickMove STORAGE -> HOTBAR");
+                if (hotbarContainer != null) {
+                    var tx = sourceContainer.moveItemStackFromSlot(slot.shortValue(), sourceStack.getQuantity(), hotbarContainer);
+                    LOGGER.atInfo().log("[CustomInventory] quickMove STORAGE -> HOTBAR remainder: %s",
+                            tx != null && tx.getAddTransaction() != null ? tx.getAddTransaction().getRemainder() : "null");
+                    releasedSources.add(NativeInventorySection.STORAGE);
+                    releasedSources.add(NativeInventorySection.HOTBAR);
+                    context.requestRefresh();
+                    return;
+                }
+            } else if (section == NativeInventorySection.HOTBAR) {
+                LOGGER.atInfo().log("[CustomInventory] quickMove HOTBAR -> STORAGE");
+                if (storageContainer != null) {
+                    var tx = sourceContainer.moveItemStackFromSlot(slot.shortValue(), sourceStack.getQuantity(), storageContainer);
+                    LOGGER.atInfo().log("[CustomInventory] quickMove HOTBAR -> STORAGE remainder: %s",
+                            tx != null && tx.getAddTransaction() != null ? tx.getAddTransaction().getRemainder() : "null");
+                    releasedSources.add(NativeInventorySection.HOTBAR);
+                    releasedSources.add(NativeInventorySection.STORAGE);
+                    context.requestRefresh();
+                    return;
+                }
+            } else if (section == NativeInventorySection.BACKPACK) {
+                LOGGER.atInfo().log("[CustomInventory] quickMove (backpack closed) BACKPACK -> STORAGE");
+                if (storageContainer != null && hotbarContainer != null) {
+                    sourceContainer.moveItemStackFromSlot(slot.shortValue(), sourceStack.getQuantity(), storageContainer, hotbarContainer);
+                } else if (storageContainer != null) {
+                    sourceContainer.moveItemStackFromSlot(slot.shortValue(), sourceStack.getQuantity(), storageContainer);
+                } else if (hotbarContainer != null) {
+                    sourceContainer.moveItemStackFromSlot(slot.shortValue(), sourceStack.getQuantity(), hotbarContainer);
+                }
+                releasedSources.add(NativeInventorySection.BACKPACK);
+                releasedSources.add(NativeInventorySection.STORAGE);
+                releasedSources.add(NativeInventorySection.HOTBAR);
+                context.requestRefresh();
+                return;
+            }
+        }
     }
 
     /** Drops every stack matching the hovered (or last selected) item from the player's own sections. */
