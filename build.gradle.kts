@@ -7,7 +7,7 @@ plugins {
 }
 
 group = "com.supremosan"
-version = "0.1.0"
+version = "0.1.1"
 
 // Use an installed official server binary. No shared-source build or modification is needed.
 val installedServer = providers.gradleProperty("hytaleServerJar")
@@ -20,7 +20,7 @@ val engineFiles = files(installedServer)
 allprojects {
     apply(plugin = "java")
     group = "com.supremosan"
-    version = "0.1.0"
+    version = "0.1.1"
     extensions.configure<JavaPluginExtension> {
         toolchain.languageVersion.set(JavaLanguageVersion.of(25))
         withSourcesJar()

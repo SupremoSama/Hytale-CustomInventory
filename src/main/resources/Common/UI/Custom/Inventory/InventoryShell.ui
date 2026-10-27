@@ -21,7 +21,8 @@ Group #InventoryBackdrop {
     AreItemsDraggable: false;
     RenderItemQualityBackground: false;
     Padding: 0;
-    Style: (SlotSize: 4096, SlotIconSize: 1, SlotSpacing: 0, SlotBackground: "Utility/Textures/TransparentSlot.png");
+    // No SlotBackground: a 4096px textured slot renders as a missing-texture box when other asset packs are loaded.
+    Style: (SlotSize: 4096, SlotIconSize: 1, SlotSpacing: 0);
   }
 }
 

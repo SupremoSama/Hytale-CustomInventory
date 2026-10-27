@@ -14,6 +14,7 @@ import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.entity.entities.player.windows.Window;
 import com.hypixel.hytale.server.core.io.PacketHandler;
 import com.hypixel.hytale.server.core.io.ServerManager;
+import com.hypixel.hytale.server.core.io.handlers.GenericPacketHandler;
 import com.hypixel.hytale.server.core.io.handlers.IPacketHandler;
 import com.hypixel.hytale.server.core.io.handlers.IWorldPacketHandler;
 import com.hypixel.hytale.server.core.io.handlers.SubPacketHandler;
@@ -23,6 +24,7 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.supremosan.custominventory.inventory.InventoryOperations;
 
+import java.lang.reflect.Field;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -45,7 +47,11 @@ final class InventoryPacketHooks implements SubPacketHandler {
     private static final AtomicBoolean FAILURE_LOGGED = new AtomicBoolean();
     // ServerManager has no unregistration: a cleared route turns every installed hook into a native pass-through.
     private static volatile BiPredicate<PlayerRef, Packet> route;
-    private static final Set<PacketHandler> HOOKED = Collections.synchronizedSet(Collections.newSetFromMap(new WeakHashMap<>()));
+    private static final AtomicBoolean DISPLACED_LOGGED = new AtomicBoolean();
+    // Our installed wrappers per connection, so a later registration by another mod can be detected and chained.
+    private static final Map<PacketHandler, Map<Integer, Consumer<ToServerPacket>>> HOOKED =
+            Collections.synchronizedMap(new WeakHashMap<>());
+    private static final Field HANDLERS = handlersField();
 
     private final IPacketHandler packetHandler;
 
@@ -61,7 +67,30 @@ final class InventoryPacketHooks implements SubPacketHandler {
         if (route == packetRoute) route = null;
     }
 
-    static boolean isHooked(PacketHandler handler) { return handler != null && HOOKED.contains(handler); }
+    /**
+     * False when another mod replaced one of our wrappers; the packet-adapter fallback then routes this packet,
+     * and the displacing handler is wrapped so later packets reach both mods.
+     */
+    static boolean isHooked(PacketHandler handler) {
+        if (handler == null) return false;
+        var wrappers = HOOKED.get(handler);
+        if (wrappers == null) return false;
+        if (HANDLERS == null || !(handler instanceof GamePacketHandler game)) return true;
+        boolean intact = true;
+        synchronized (wrappers) {
+            for (var entry : Map.copyOf(wrappers).entrySet()) {
+                var current = current(game, entry.getKey());
+                if (current == null || current == entry.getValue()) continue;
+                intact = false;
+                if (DISPLACED_LOGGED.compareAndSet(false, true)) {
+                    LOGGER.atWarning().log("CustomInventory packet hook %d was replaced by %s; chaining it",
+                            entry.getKey(), current.getClass().getName());
+                }
+                hook(game, entry.getKey(), current, wrappers);
+            }
+        }
+        return intact;
+    }
 
     static boolean isHookedPacket(Packet packet) {
         return packet instanceof ClientOpenWindow || packet instanceof CloseWindow
@@ -72,24 +101,60 @@ final class InventoryPacketHooks implements SubPacketHandler {
     @Override
     public void registerHandlers() {
         if (!(packetHandler instanceof GamePacketHandler game)) return;
+        var wrappers = new HashMap<Integer, Consumer<ToServerPacket>>();
         var natives = new NativeHandlers(game);
         IWorldPacketHandler.<ClientOpenWindow>registerHandler(natives, ClientOpenWindow.PACKET_ID,
                 (packet, playerRef, ref, world, store) -> openNativeWindow(game, packet, ref, store));
         IWorldPacketHandler.<CloseWindow>registerHandler(natives, CloseWindow.PACKET_ID, game::handleCloseWindow);
 
-        hook(game, ClientOpenWindow.PACKET_ID, natives.get(ClientOpenWindow.PACKET_ID));
-        hook(game, CloseWindow.PACKET_ID, natives.get(CloseWindow.PACKET_ID));
-        hook(game, CustomPageEvent.PACKET_ID, packet -> game.handle((CustomPageEvent) packet));
+        hook(game, ClientOpenWindow.PACKET_ID, previous(game, ClientOpenWindow.PACKET_ID, natives.get(ClientOpenWindow.PACKET_ID)), wrappers);
+        hook(game, CloseWindow.PACKET_ID, previous(game, CloseWindow.PACKET_ID, natives.get(CloseWindow.PACKET_ID)), wrappers);
+        hook(game, CustomPageEvent.PACKET_ID, previous(game, CustomPageEvent.PACKET_ID, packet -> game.handle((CustomPageEvent) packet)), wrappers);
         var inventory = game.getSubPacketHandler(InventoryPacketHandler.class);
-        if (inventory != null) hook(game, DropItemStack.PACKET_ID, packet -> inventory.handle((DropItemStack) packet));
-        if (inventory != null) hook(game, SmartMoveItemStack.PACKET_ID, packet -> inventory.handle((SmartMoveItemStack) packet));
-        HOOKED.add(game);
+        if (inventory != null) hook(game, DropItemStack.PACKET_ID, previous(game, DropItemStack.PACKET_ID, packet -> inventory.handle((DropItemStack) packet)), wrappers);
+        if (inventory != null) hook(game, SmartMoveItemStack.PACKET_ID, previous(game, SmartMoveItemStack.PACKET_ID, packet -> inventory.handle((SmartMoveItemStack) packet)), wrappers);
+        HOOKED.put(game, wrappers);
     }
 
-    private static void hook(GamePacketHandler game, int packetId, Consumer<ToServerPacket> nativeHandler) {
-        game.registerHandler(packetId, packet -> {
-            if (!routed(game.getPlayerRef(), packet)) nativeHandler.accept(packet);
-        });
+    /** Another mod's handler registered before ours stays the fallback instead of being bypassed. */
+    private static Consumer<ToServerPacket> previous(GamePacketHandler game, int packetId, Consumer<ToServerPacket> nativeHandler) {
+        var current = current(game, packetId);
+        return current != null && !isGameLambda(current) ? current : nativeHandler;
+    }
+
+    private static boolean isGameLambda(Consumer<ToServerPacket> handler) {
+        return handler.getClass().getName().startsWith("com.hypixel.hytale.");
+    }
+
+    private static void hook(GamePacketHandler game, int packetId, Consumer<ToServerPacket> fallback,
+                             Map<Integer, Consumer<ToServerPacket>> wrappers) {
+        Consumer<ToServerPacket> wrapper = packet -> {
+            if (!routed(game.getPlayerRef(), packet)) fallback.accept(packet);
+        };
+        game.registerHandler(packetId, wrapper);
+        wrappers.put(packetId, wrapper);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Consumer<ToServerPacket> current(GamePacketHandler game, int packetId) {
+        if (HANDLERS == null) return null;
+        try {
+            var handlers = (Consumer<ToServerPacket>[]) HANDLERS.get(game);
+            return handlers != null && packetId >= 0 && packetId < handlers.length ? handlers[packetId] : null;
+        } catch (ReflectiveOperationException | RuntimeException failure) {
+            return null;
+        }
+    }
+
+    private static Field handlersField() {
+        try {
+            var field = GenericPacketHandler.class.getDeclaredField("handlers");
+            field.setAccessible(true);
+            return field;
+        } catch (ReflectiveOperationException | RuntimeException failure) {
+            LOGGER.atWarning().withCause(failure).log("CustomInventory cannot inspect packet handlers; other mods' handlers may be bypassed");
+            return null;
+        }
     }
 
     private static boolean routed(PlayerRef playerRef, ToServerPacket packet) {
