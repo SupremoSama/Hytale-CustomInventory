@@ -7,7 +7,6 @@ import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import java.util.List;
 import java.util.Objects;
 
-/** Native UI commands scoped beneath a host supplied to InventoryContent.build/refresh. */
 public class InventoryCommands extends UICommandBuilder {
     private final UICommandBuilder target;
     private final String host;

@@ -2,8 +2,6 @@ $C = "../Common.ui";
 $T = "TooltipStyle.ui";
 $G = "InventoryGridStyle.ui";
 
-// Geometry follows the client's CharacterPanel.ui. Equipment icons and values
-// are supplied by the persistent server inventory controller.
 @SectionLabelStyle = LabelStyle(FontSize: 14, RenderBold: true, RenderUppercase: true, TextColor: #878e9c);
 @StatValueStyle = LabelStyle(FontSize: 14, RenderBold: true, TextColor: #b4c8c9);
 @StatCaptionStyle = LabelStyle(FontSize: 11, RenderBold: false, TextColor: #878e9c);
@@ -68,8 +66,7 @@ $C.@DecoratedContainer #PlayerPanel {
         Group #Visible { HitTestVisible: false; Anchor: (Full: 0); Background: "Textures/ArmorVisibilityOn.png"; }
         Group #Hidden { HitTestVisible: false; Anchor: (Full: 0); Background: "Textures/ArmorVisibilityOff.png"; Visible: false; }
       }
-      // Only the middle utility slot is an inventory index. The two side slots
-      // match the game's temporary decorative artwork.
+
       Group #UtilitySection {
         Anchor: (Full: 0);
         Group #UtilitySlotCompatibleHighlight {
@@ -174,8 +171,7 @@ $C.@DecoratedContainer #PlayerPanel {
       }
     }
   }
-  // Overlay follows the same content origin, but is outside its Top layout
-  // and drawn after both equipment and stats. Center: utility slot (190, 451).
+
   Group #UtilityWheelHost {
     Anchor: (Left: $C.@FullPaddingValue + 35, Top: $C.@TitleHeight + $C.@FullPaddingValue - 8 + 296, Width: 310, Height: 310);
     Visible: false;

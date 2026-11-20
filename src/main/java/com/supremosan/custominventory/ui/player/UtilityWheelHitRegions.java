@@ -4,9 +4,6 @@ import com.hypixel.hytale.protocol.packets.interface_.CustomUIEventBindingType;
 import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.supremosan.custominventory.api.InventoryEventBindings;
 
-/** Scanline hit areas for the native 310px, five-slice inventory wheel.
- * Legacy CustomUI has rectangular hit testing; a render mask does not shape it.
- */
 public final class UtilityWheelHitRegions {
     private static final int SIZE = 310;
     private static final int STRIP = 4;
@@ -18,8 +15,7 @@ public final class UtilityWheelHitRegions {
         double dy = y - SIZE / 2.0;
         double radius = Math.hypot(dx, dy);
         if (radius < 70 || radius >= 155) return -2;
-        // Clockwise from twelve o'clock: upper-right, lower-right, clear,
-        // lower-left, upper-left. The native slice boundaries are 72 degrees.
+
         int slice = (int) ((Math.toDegrees(Math.atan2(dx, -dy)) + 360) % 360 / 72);
         return switch (slice) {
             case 0 -> 2;

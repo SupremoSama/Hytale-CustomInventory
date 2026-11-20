@@ -12,7 +12,6 @@ import com.hypixel.hytale.server.core.modules.entity.component.PreventInventoryA
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
-/** Validates UI requests and delegates all actual movement to the engine. Call on the owning world thread. */
 public final class InventoryOperations {
     public enum Result {
         SUBMITTED, LOCKED, INVALID_SOURCE, INVALID_TARGET, INVALID_QUANTITY, STALE_SELECTION, SAME_SLOT,
@@ -51,7 +50,6 @@ public final class InventoryOperations {
         return container != null && slot >= 0 && slot < container.getCapacity();
     }
 
-    /** Validates requests without changing either container. */
     public static Result validate(InventorySelection selection, ItemContainer currentSource,
                                   ItemContainer target, int targetSlot, int quantity, boolean locked) {
         if (locked) return Result.LOCKED;
@@ -96,15 +94,11 @@ public final class InventoryOperations {
             return Result.SUBMITTED;
         }
 
-        // Native filters, stack rules, ability consistency, active-hotbar interactions, save/change
-        // events and synchronization remain the engine's responsibility. The engine may defer or
-        // reject a move, so SUBMITTED means a validated request, not a confirmed transfer.
         InventoryUtils.moveItem(ref, selection.section().id(), selection.slot(), quantity,
                 targetSection.id(), targetSlot, store);
         return Result.SUBMITTED;
     }
 
-    /** Submits a displayed stack to the engine's ordinary player-drop handler. */
     public static Result drop(Ref<EntityStore> ref, Store<EntityStore> store,
                               InventorySelection selection, int quantity) {
         if (locked(ref, store)) return Result.LOCKED;
@@ -133,10 +127,7 @@ public final class InventoryOperations {
                 || !(playerRef.getPacketHandler() instanceof IPacketHandler packetHandler)) {
             return Result.INVALID_SOURCE;
         }
-        // The public handler only captures this packet handler; no registration or network send is
-        // needed. It queues the usual world task, which owns mode/lock checks, both drop events,
-        // ability removal, container filters, item spawning and synchronization. A submitted
-        // request is not a confirmed drop, and inventory change listeners report its result.
+
         new InventoryPacketHandler(packetHandler).handle(
                 new DropItemStack(selection.section().id(), selection.slot(), quantity));
         return Result.SUBMITTED;

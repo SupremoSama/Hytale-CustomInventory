@@ -5,7 +5,6 @@ $Sounds = "../Sounds.ui";
 @EmptyArmorHands = PatchStyle(TexturePath: "Textures/ArmorSlotIconHands.png");
 @EmptyArmorLegs = PatchStyle(TexturePath: "Textures/ArmorSlotIconLegs.png");
 
-// Native inventory textures and dimensions, also used by the equipment grids.
 @InventoryGridStyle = ItemGridStyle(
   SlotSize: 74,
   SlotIconSize: 64,

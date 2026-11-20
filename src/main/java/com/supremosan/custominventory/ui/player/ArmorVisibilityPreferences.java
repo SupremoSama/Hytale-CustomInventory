@@ -5,7 +5,6 @@ import com.hypixel.hytale.server.core.modules.entity.player.PlayerSettings;
 
 import java.util.Objects;
 
-/** Native armor render preferences; changing visibility never removes equipment or its stats. */
 public final class ArmorVisibilityPreferences {
     public enum Slot {
         HELMET("#HelmetVisibility", "helmet", "Helmet", "Capacete"),
@@ -62,7 +61,6 @@ public final class ArmorVisibilityPreferences {
 
     private ArmorVisibilityPreferences() { }
 
-    /** Preserve every unrelated native preference, including creative and voice settings. */
     public static PlayerSettings toggle(PlayerSettings settings, Slot slot, ArmorVisibilityOption option) {
         Objects.requireNonNull(settings);
         Objects.requireNonNull(slot);

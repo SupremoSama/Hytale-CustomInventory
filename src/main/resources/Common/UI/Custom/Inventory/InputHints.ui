@@ -2,9 +2,6 @@ $C = "../Common.ui";
 $K = "InputBinding.ui";
 $T = "TooltipStyle.ui";
 
-// InventoryPage.ui action legends and Common/ActionButton.ui glyph layout.
-// These are the default controls shown in the native inventory reference;
-// Labels show default controls. They do not resolve client remappings or activate keyboard events.
 @HelpLabelStyle = LabelStyle(VerticalAlignment: Center, FontSize: 15, RenderBold: true, TextColor: #ffffff(0.8));
 @HelpDisabledLabelStyle = LabelStyle(...@HelpLabelStyle, TextColor: #ffffff(0.4));
 @HelpButtonStyle = ButtonStyle(Sounds: $C.@ButtonSounds);

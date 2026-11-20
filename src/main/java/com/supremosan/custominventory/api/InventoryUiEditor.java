@@ -9,15 +9,6 @@ import java.util.Objects;
 import java.util.function.Consumer;
 import com.hypixel.hytale.server.core.Message;
 
-/**
- * Callback-scoped mutations. Core grids cannot be removed/rebound or assigned arbitrary properties.
- * A registered extension receives a contribution token: every extension host then
- * resolves to that registration's own child, alongside the framework's native
- * content. Clearing or removing that child cannot destroy another contribution
- * or the native inventory. The token-free editor is reserved for an owned view,
- * which uses the direct content hosts. Mutations of supported core elements remain
- * shared and are applied in the framework's deterministic extension order.
- */
 public final class InventoryUiEditor implements AutoCloseable {
     private static final InventoryElementId[] CONTRIBUTION_HOSTS = {
             InventoryElementId.CONTENT_HOST, InventoryElementId.HEADER_ACTIONS,
@@ -29,16 +20,10 @@ public final class InventoryUiEditor implements AutoCloseable {
     private final String contributionToken;
     private boolean valid = true;
 
-    /** Direct hosts for an inventory view that owns its content. */
     public InventoryUiEditor(UICommandBuilder commands, InventoryEventBindings bindings) {
         this(commands, bindings, null);
     }
 
-    /**
-     * Isolated hosts for one mounted registration. Tokens contain 1–80 letters,
-     * digits or underscores; the framework derives them from registration identity.
-     * Use {@link #mountContribution} before delivering the editor to callbacks.
-     */
     public InventoryUiEditor(UICommandBuilder commands, InventoryEventBindings bindings, String contributionToken) {
         this.commands = Objects.requireNonNull(commands);
         this.bindings = Objects.requireNonNull(bindings);
@@ -51,12 +36,6 @@ public final class InventoryUiEditor implements AutoCloseable {
                 ? contributionSelector(id, contributionToken) : id.selector();
     }
 
-    /**
-     * Mounts one registration's five isolated hosts. The shell must have already
-     * mounted its sibling extension anchors. Call once per registration and UI
-     * instance, before creation/open callbacks; rebuilding the shell requires a
-     * fresh mount. This method does not clear native controls or existing siblings.
-     */
     public static void mountContribution(UICommandBuilder commands, String contributionToken) {
         Objects.requireNonNull(commands);
         String token = token(contributionToken);
@@ -68,11 +47,6 @@ public final class InventoryUiEditor implements AutoCloseable {
         }
     }
 
-    /**
-     * Removes only this registration's mounted children, including their native
-     * event bindings. Call once when unregistering or disposing a contribution;
-     * callbacks and server state are cleaned up by the framework's lifecycle.
-     */
     public static void removeContribution(UICommandBuilder commands, String contributionToken) {
         Objects.requireNonNull(commands);
         String token = token(contributionToken);
@@ -118,14 +92,14 @@ public final class InventoryUiEditor implements AutoCloseable {
     }
     public void anchor(InventoryElementId id, Anchor anchor) { commands.setObject(selector(id) + ".Anchor", Objects.requireNonNull(anchor)); }
     public void padding(InventoryElementId id, Value<?> value) { commands.set(selector(id) + ".Padding", Objects.requireNonNull(value)); }
-    /** Icon for a contribution's own element; never mutates native ItemGrid drag metadata. */
+
     public void icon(InventoryElementId host, String localId, String texturePath) {
         commands.setObject(selector(host, localId) + ".Background", new PatchStyle(Value.of(Objects.requireNonNull(texturePath))));
     }
     public void append(InventoryElementId id, String document) { host(id); commands.append(selector(id), Objects.requireNonNull(document)); }
     public void clear(InventoryElementId id) { host(id); commands.clear(selector(id)); }
     public void remove(InventoryElementId host, String localId) { commands.remove(selector(host, localId)); }
-    /** Native builder restricted to a contribution's descendants; invalid after this callback. */
+
     public void edit(InventoryElementId host, Consumer<UICommandBuilder> operation) {
         host(host);
         operation.accept(new ScopedCommands(host));

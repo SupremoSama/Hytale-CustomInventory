@@ -3,10 +3,7 @@ package com.supremosan.custominventory.inventory;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.ui.ItemGridSlot;
 
-/** Maps the single visible utility slot to the selected slot in the real utility container. */
 public final class UtilitySlotProjection {
-    // These are CustomUI drag identities, never native inventory section IDs.
-    // Every one-slot projection needs its own identity because its visible slot is always zero.
     public static final int CENTER_GRID_ID = -1050;
     private static final int FIRST_WHEEL_GRID_ID = -1051;
     private static final int WHEEL_SLOTS = 4;
@@ -24,7 +21,7 @@ public final class UtilitySlotProjection {
 
     public static int sourceIndex(Integer visibleSlot, int activeSlot, int capacity, InventorySelection captured) {
         if (visibleSlot == null || visibleSlot != 0) return -1;
-        // A selection made before the active utility changed still refers to its original item.
+
         int index = captured != null && captured.section() == NativeInventorySection.UTILITY
                 ? captured.slot() : activeSlot;
         return activeIndex(capacity, index);
@@ -40,7 +37,6 @@ public final class UtilitySlotProjection {
         return -1;
     }
 
-    /** Each wheel grid has one visible slot, but its bound payload names a real utility index. */
     public static int wheelIndex(String payload, Integer visibleSlot, int capacity) {
         if (visibleSlot == null || visibleSlot != 0 || payload == null || !payload.matches("[0-3]")) return -1;
         return activeIndex(capacity, Integer.parseInt(payload));
@@ -56,7 +52,6 @@ public final class UtilitySlotProjection {
                 || sectionId <= FIRST_WHEEL_GRID_ID && sectionId > FIRST_WHEEL_GRID_ID - WHEEL_SLOTS);
     }
 
-    /** Resolves the grid identity even after hiding the wheel cancels its client drag-start event. */
     public static int dragSourceIndex(int sectionId, Integer visibleSlot, int activeSlot,
                                       int capacity, InventorySelection captured) {
         if (visibleSlot == null) return -1;

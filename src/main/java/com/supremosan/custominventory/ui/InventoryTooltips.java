@@ -2,11 +2,6 @@ package com.supremosan.custominventory.ui;
 
 import com.hypixel.hytale.server.core.Message;
 
-/**
- * Tooltips for click-only controls. The client never reports its key bindings to the server, so these
- * name the action without the native "(key not assigned)" variants, which would be wrong for a player
- * who did bind a key.
- */
 public final class InventoryTooltips {
     private InventoryTooltips() { }
 

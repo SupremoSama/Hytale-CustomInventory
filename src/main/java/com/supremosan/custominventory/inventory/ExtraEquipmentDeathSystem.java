@@ -13,7 +13,6 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.supremosan.custominventory.api.ExtraEquipment;
 import java.util.Set;
 
-/** Applies the world's normal loss settings to the additional equipment inventory. */
 public final class ExtraEquipmentDeathSystem extends DeathSystems.OnDeathSystem {
     @Override public Query<EntityStore> getQuery() { return Query.and(Player.getComponentType(), ExtraEquipment.TYPE); }
     @Override public Set<Dependency<EntityStore>> getDependencies() {

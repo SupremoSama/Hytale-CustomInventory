@@ -20,16 +20,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-/**
- * Shared equipment behaviour for the {@link ExtraEquipment} slots (hat, backpack, collar, belt):
- * equipping, unequipping, change notifications and an independent, saved visibility state per slot.
- * <p>
- * CustomInventory owns the state, the Gear eye controls and the rendering: a mod registers a
- * {@link Listener} for its slot and returns the item's model from {@link Listener#attachment}.
- * CustomInventory shows it only while the slot is visible and re-renders on equip and eye changes,
- * so equipment from different mods never competes for the player model (see {@link PlayerModel}).
- * Every method and callback runs on the player's world thread.
- */
 public final class EquipmentManager {
     private static final HytaleLogger LOGGER = HytaleLogger.forEnclosingClass();
     private static final ConcurrentHashMap<Short, CopyOnWriteArrayList<Listener>> LISTENERS = new ConcurrentHashMap<>();
@@ -37,23 +27,12 @@ public final class EquipmentManager {
     private EquipmentManager() { }
 
     public interface Listener {
-        /**
-         * The slot's item differs from the last one announced: equipped, removed, replaced or its
-         * metadata/durability changed. Occupied slots are announced again when the player becomes
-         * ready, with an empty {@code previous}. Structural ECS changes must use {@link Change#commands()}.
-         */
         default void onEquipmentChanged(Change change) { }
 
-        /**
-         * The model rendered for the equipped item, or null for none / an item of another mod.
-         * Called while rebuilding; must not change game state.
-         */
         default ModelAttachment attachment(Ref<EntityStore> ref, Store<EntityStore> store, ItemStack equipped) { return null; }
 
-        /** The player toggled this slot's eye. The model is re-rendered already; react to anything else. */
         default void onVisibilityChanged(VisibilityChange change) { }
 
-        /** Return false for functional items that must stay rendered; the eye is then shown as locked. */
         default boolean canHide(ItemStack equipped) { return true; }
     }
 
@@ -66,7 +45,6 @@ public final class EquipmentManager {
     public record VisibilityChange(Ref<EntityStore> ref, Store<EntityStore> store, short slot,
                                    boolean visible, ItemStack equipped) { }
 
-    /** Removing the handle stops callbacks; it does not alter saved visibility. */
     public static InventoryRegistry.Registration addListener(short slot, Listener listener) {
         requireSlot(slot);
         Objects.requireNonNull(listener, "listener");
@@ -84,14 +62,12 @@ public final class EquipmentManager {
         return ItemStack.isEmpty(item) ? null : item;
     }
 
-    /** The slot's saved preference. Players without equipment data see every slot. */
     public static boolean isVisible(Ref<EntityStore> ref, Store<EntityStore> store, short slot) {
         requireSlot(slot);
         var equipment = store.getComponent(ref, ExtraEquipment.TYPE);
         return equipment == null || equipment.isSlotVisible(slot);
     }
 
-    /** False when a listener requires the equipped item to stay rendered. */
     public static boolean canHide(Ref<EntityStore> ref, Store<EntityStore> store, short slot) {
         var equipped = getEquipped(ref, store, slot);
         if (equipped == null) return true;
@@ -105,7 +81,6 @@ public final class EquipmentManager {
         return true;
     }
 
-    /** What CustomInventory renders for the slot: the first listener attachment, unless the eye hides it. */
     public static ModelAttachment renderedAttachment(Ref<EntityStore> ref, Store<EntityStore> store, short slot) {
         var equipped = getEquipped(ref, store, slot);
         if (equipped == null || !isVisible(ref, store, slot) && canHide(ref, store, slot)) return null;
@@ -120,7 +95,6 @@ public final class EquipmentManager {
         return null;
     }
 
-    /** @return true when the saved state changed; listeners for this slot only are then notified. */
     public static boolean setVisible(Ref<EntityStore> ref, Store<EntityStore> store, short slot, boolean visible) {
         requireSlot(slot);
         if (!ref.isValid()) return false;
@@ -138,17 +112,12 @@ public final class EquipmentManager {
         return true;
     }
 
-    /** @return the new visibility. */
     public static boolean toggleVisible(Ref<EntityStore> ref, Store<EntityStore> store, short slot) {
         boolean next = !isVisible(ref, store, slot);
         setVisible(ref, store, slot, next);
         return isVisible(ref, store, slot);
     }
 
-    /**
-     * Moves an eligible item into the slot. An occupied slot swaps its item back into the source
-     * slot, following the engine's move rules; slot filters still apply.
-     */
     public static boolean equip(Ref<EntityStore> ref, Store<EntityStore> store, short slot,
                                 ItemContainer source, short sourceSlot) {
         requireSlot(slot);
@@ -160,7 +129,6 @@ public final class EquipmentManager {
         return source.moveItemStackFromSlotToSlot(sourceSlot, item.getQuantity(), target, slot).succeeded();
     }
 
-    /** Moves the equipped item into the first free place of target. */
     public static boolean unequip(Ref<EntityStore> ref, Store<EntityStore> store, short slot, ItemContainer target) {
         requireSlot(slot);
         Objects.requireNonNull(target, "target");
@@ -169,10 +137,6 @@ public final class EquipmentManager {
         return equipment.getInventory().moveItemStackFromSlot(slot, target).succeeded();
     }
 
-    /**
-     * Re-announces occupied slots, e.g. after a saved player loads, so listeners rebuild visuals,
-     * lights and capacity. Delivery happens through the normal inventory change events.
-     */
     public static void announce(Ref<EntityStore> ref, Store<EntityStore> store) {
         var equipment = ExtraEquipment.ensure(ref, store);
         var inventory = equipment.getInventory();
@@ -193,7 +157,6 @@ public final class EquipmentManager {
         if (!ExtraEquipment.validSlot(slot)) throw new IllegalArgumentException("Invalid equipment slot: " + slot);
     }
 
-    /** Converts queued equipment inventory changes into per-slot listener calls. */
     public static final class Dispatcher extends EntityEventSystem<EntityStore, InventoryChangeEvent> {
         public Dispatcher() { super(InventoryChangeEvent.class); }
 
@@ -209,7 +172,7 @@ public final class EquipmentManager {
             var inventory = equipment.getInventory();
             for (short slot = 0; slot < inventory.getCapacity() && slot < ExtraEquipment.SLOT_COUNT; slot++) {
                 if (!event.getTransaction().wasSlotModified(slot)) continue;
-                // Read the live slot: several queued events can describe one final state.
+
                 var current = inventory.getItemStack(slot);
                 if (ItemStack.isEmpty(current)) current = null;
                 var previous = equipment.announced(slot);

@@ -2,7 +2,6 @@ package com.supremosan.custominventory.inventory;
 
 import com.hypixel.hytale.server.core.inventory.InventoryComponent;
 
-/** The explicit native sections supported by the first inventory prototype. */
 public enum NativeInventorySection {
     STORAGE(InventoryComponent.STORAGE_SECTION_ID, "StorageGrid"),
     HOTBAR(InventoryComponent.HOTBAR_SECTION_ID, "HotbarGrid"),

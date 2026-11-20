@@ -35,20 +35,14 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiPredicate;
 import java.util.function.Consumer;
 
-/**
- * Transport-independent inbound hook. Inbound {@code PacketAdapters} only run on the Netty transport;
- * the Quiche transport used by player-hosted (singleplayer) worlds calls the packet handler directly.
- * Sub packet handlers register after the native game handlers on every connection, so these wrappers
- * see the inventory packets on either transport and fall back to the native consumer when not routed.
- */
 final class InventoryPacketHooks implements SubPacketHandler {
     private static final HytaleLogger LOGGER = HytaleLogger.forEnclosingClass();
     private static final AtomicBoolean INSTALLED = new AtomicBoolean();
     private static final AtomicBoolean FAILURE_LOGGED = new AtomicBoolean();
-    // ServerManager has no unregistration: a cleared route turns every installed hook into a native pass-through.
+
     private static volatile BiPredicate<PlayerRef, Packet> route;
     private static final AtomicBoolean DISPLACED_LOGGED = new AtomicBoolean();
-    // Our installed wrappers per connection, so a later registration by another mod can be detected and chained.
+
     private static final Map<PacketHandler, Map<Integer, Consumer<ToServerPacket>>> HOOKED =
             Collections.synchronizedMap(new WeakHashMap<>());
     private static final Field HANDLERS = handlersField();
@@ -57,7 +51,6 @@ final class InventoryPacketHooks implements SubPacketHandler {
 
     private InventoryPacketHooks(IPacketHandler packetHandler) { this.packetHandler = packetHandler; }
 
-    /** Applies to connections created afterwards; earlier connections keep the packet-adapter fallback. */
     static void install(BiPredicate<PlayerRef, Packet> packetRoute) {
         route = packetRoute;
         if (INSTALLED.compareAndSet(false, true)) ServerManager.get().registerSubPacketHandlers(InventoryPacketHooks::new);
@@ -67,10 +60,6 @@ final class InventoryPacketHooks implements SubPacketHandler {
         if (route == packetRoute) route = null;
     }
 
-    /**
-     * False when another mod replaced one of our wrappers; the packet-adapter fallback then routes this packet,
-     * and the displacing handler is wrapped so later packets reach both mods.
-     */
     static boolean isHooked(PacketHandler handler) {
         if (handler == null) return false;
         var wrappers = HOOKED.get(handler);
@@ -116,7 +105,6 @@ final class InventoryPacketHooks implements SubPacketHandler {
         HOOKED.put(game, wrappers);
     }
 
-    /** Another mod's handler registered before ours stays the fallback instead of being bypassed. */
     private static Consumer<ToServerPacket> previous(GamePacketHandler game, int packetId, Consumer<ToServerPacket> nativeHandler) {
         var current = current(game, packetId);
         return current != null && !isGameLambda(current) ? current : nativeHandler;
@@ -163,7 +151,6 @@ final class InventoryPacketHooks implements SubPacketHandler {
         try {
             return current.test(playerRef, packet);
         } catch (RuntimeException failure) {
-            // Same contract as PacketAdapters: a failing filter leaves the packet to the native handler.
             if (FAILURE_LOGGED.compareAndSet(false, true)) {
                 LOGGER.atWarning().withCause(failure).log("CustomInventory packet route failed; using the native handler");
             }
@@ -171,7 +158,6 @@ final class InventoryPacketHooks implements SubPacketHandler {
         }
     }
 
-    /** GamePacketHandler.handleClientOpenWindow is protected; this is its body through public API. */
     private static void openNativeWindow(GamePacketHandler game, ClientOpenWindow packet,
                                          Ref<EntityStore> ref, Store<EntityStore> store) {
         if (InventoryOperations.locked(ref, store)) return;
@@ -183,7 +169,6 @@ final class InventoryPacketHooks implements SubPacketHandler {
         if (update != null) game.writeNoCache(update);
     }
 
-    /** Captures the consumers IWorldPacketHandler builds, so world-thread validation stays native. */
     private static final class NativeHandlers implements IPacketHandler {
         private final GamePacketHandler game;
         private final Map<Integer, Consumer<ToServerPacket>> handlers = new HashMap<>();

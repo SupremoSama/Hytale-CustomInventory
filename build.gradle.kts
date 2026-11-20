@@ -9,7 +9,6 @@ plugins {
 group = "com.supremosan"
 version = "0.1.1"
 
-// Use an installed official server binary. No shared-source build or modification is needed.
 val installedServer = providers.gradleProperty("hytaleServerJar")
     .orElse(providers.environmentVariable("HYTALE_SERVER_JAR"))
     .orElse(providers.environmentVariable("APPDATA").map {
@@ -58,7 +57,7 @@ val prepareRunServer = tasks.register("prepareRunServer") {
             into(runDirectory.resolve("mods"))
             rename { "CustomInventory-dev.jar" }
         }
-        // Avoid the installed server's first-run permission-writer failure. Preserve existing files.
+
         val permissions = runDirectory.resolve("permissions.json").toPath()
         if (!Files.exists(permissions)) {
             Files.writeString(permissions, "{\"users\":{},\"groups\":{}}\n",

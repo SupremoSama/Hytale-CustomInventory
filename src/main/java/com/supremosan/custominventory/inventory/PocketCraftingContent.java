@@ -36,7 +36,6 @@ import java.util.function.Function;
 import java.util.function.IntPredicate;
 import java.util.function.ToIntFunction;
 
-/** Native pocket presentation. The engine owns all crafting validation and transactions. */
 public final class PocketCraftingContent implements InventoryContent {
     private static final String DOCUMENT = "Inventory/Crafting/PocketCrafting.ui";
     private final Map<ItemContainer, EventRegistration> listeners = new IdentityHashMap<>();
@@ -47,7 +46,6 @@ public final class PocketCraftingContent implements InventoryContent {
     private String search = "";
     private boolean hideUnknownRecipes;
 
-    /** A bench recipe cannot be forged into a pocket crafting action. */
     public static boolean isPocketRecipe(CraftingRecipe recipe) {
         if (recipe == null || recipe.getId() == null || recipe.getId().isBlank()
                 || recipe.getPrimaryOutput() == null || recipe.getPrimaryOutput().getItemId() == null
@@ -139,7 +137,6 @@ public final class PocketCraftingContent implements InventoryContent {
         }
         commands.set(root + " #RecipeGrid.Slots", slots);
         if (mount) {
-            // Bound once: the shell keeps this content session valid across presentation refreshes.
             bindings.bind(CustomUIEventBindingType.SlotClicking, "#PocketCrafting #RecipeGrid", "SelectRecipe", "", true);
             for (String quantity : List.of("1", "10", "All")) bindings.bind(CustomUIEventBindingType.Activating,
                     "#PocketCrafting #Craft" + quantity + "Button", "Craft" + quantity, "", true);
@@ -185,7 +182,7 @@ public final class PocketCraftingContent implements InventoryContent {
         commands.set(root + " #Craft1Button.Disabled", !backendReady || limit < 1);
         commands.set(root + " #Craft10Button.Disabled", !backendReady || limit < 10);
         commands.set(root + " #CraftAllButton.Disabled", !backendReady || limit < 1);
-        commands.set(root + " #ProgressBar.Value", 0f); // Pocket crafting completes instantly in the engine.
+        commands.set(root + " #ProgressBar.Value", 0f);
         commands.set(root + " #Status.Text", status);
         commands.set(root + " #Status.Visible", !status.isBlank());
     }
@@ -241,12 +238,11 @@ public final class PocketCraftingContent implements InventoryContent {
         var inventory = InventoryComponent.getCombined(context.store(), context.ref(), InventoryComponent.BACKPACK_STORAGE_HOTBAR);
         int quantity = requestedQuantity(event.action(), maxCraftable(recipe, inventory, player.getGameMode() == GameMode.Creative));
         if (quantity < 1) return;
-        // The player's real manager validates recipe knowledge, memory eligibility and material/output transactions.
+
         status = manager.craftItem(context.ref(), context.store(), recipe, quantity, inventory) ? "" : "Unable to craft this recipe";
         context.requestRefresh();
     }
 
-    /** Presentation changes need no inventory mutation; the shell still validates the active page/session. */
     boolean handlePresentationEvent(InventoryContentEvent event) {
         if ("FilterRecipes".equals(event.action())) { setSearch(event.payload()); return true; }
         if ("ToggleUnknown".equals(event.action()) || "ToggleUnknownRecipes".equals(event.action())) {
@@ -282,8 +278,7 @@ public final class PocketCraftingContent implements InventoryContent {
         if (inventory == null) return 0;
         var output = recipe.getPrimaryOutput();
         var item = Item.getAssetMap().getAsset(output.getItemId());
-        // Match the engine's permissive overflow ceiling: occupied slots may merge outputs,
-        // and removing recipe inputs may free a slot. The real craft decides where outputs go.
+
         int outputLimit = outputLimit(inventory.getCapacity(), item == null ? 1 : item.getMaxStack(), output.getQuantity());
         return materialLimit(recipe, outputLimit, creative, inventory::countRemovableMaterial,
                 quantity -> inventory.canRemoveMaterials(CraftingManager.getInputMaterials(recipe, quantity)));
@@ -293,7 +288,6 @@ public final class PocketCraftingContent implements InventoryContent {
         return (int) Math.min(Integer.MAX_VALUE, Math.max(0L, (long) capacity * Math.max(1, stackSize) / Math.max(1, outputQuantity)));
     }
 
-    /** Checks the combined request too, so overlapping ingredient predicates cannot double-count a stack. */
     static int materialLimit(CraftingRecipe recipe, int outputLimit, boolean creative,
                              ToIntFunction<MaterialQuantity> count, IntPredicate canRemove) {
         if (outputLimit < 1) return 0;

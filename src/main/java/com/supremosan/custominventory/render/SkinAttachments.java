@@ -6,9 +6,7 @@ import com.hypixel.hytale.server.core.cosmetics.PlayerSkinPartTexture;
 
 import java.util.Map;
 
-/** Resolves player skin parts into model attachments, the way the client renders a skin. */
 final class SkinAttachments {
-
     private static final double DEFAULT_SCALE = 1.0D;
 
     private SkinAttachments() {

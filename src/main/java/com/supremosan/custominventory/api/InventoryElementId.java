@@ -1,6 +1,5 @@
 package com.supremosan.custominventory.api;
 
-/** Supported shell elements. Selectors are resolved by the host, never by hierarchy positions. */
 public enum InventoryElementId {
     SHELL("#InventoryShell"), PLAYER_PANEL("#PlayerPanelHost"), INVENTORY_PANEL("#InventoryPanelHost"),
     STORAGE_GRID("#StorageGrid"), HOTBAR_GRID("#HotbarGrid"), ARMOR_GRID("#ArmorGrid"), UTILITY_GRID("#UtilityGrid"),

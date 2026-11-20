@@ -10,7 +10,6 @@ import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 
-/** Current player context. Content callbacks execute on this player's world thread. */
 public record InventoryContext(Ref<EntityStore> ref, Store<EntityStore> store,
                                PlayerRef playerRef, Runnable refreshRequest, String viewId,
                                Runnable closeRequest, BooleanSupplier active,
@@ -34,17 +33,13 @@ public record InventoryContext(Ref<EntityStore> ref, Store<EntityStore> store,
         this(ref, store, playerRef, () -> {});
     }
 
-    /** Thread-safe request; the host queues and coalesces updates and ignores dismissed pages. */
     public void requestRefresh() {
         refreshRequest.run();
     }
 
-    /** Queued close of this session only; never closes a subsequently opened page. */
     public void requestClose() { closeRequest.run(); }
 
-    /** Check on the owning world thread before touching game state in delayed callbacks. */
     public boolean isActive() { return active.getAsBoolean(); }
 
-    /** Incremental update of owned contribution elements on the world thread; discarded after detachment. */
     public void update(UICommandBuilder commands) { presentationUpdate.accept(Objects.requireNonNull(commands)); }
 }

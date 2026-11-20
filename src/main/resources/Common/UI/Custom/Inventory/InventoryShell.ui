@@ -10,10 +10,9 @@ $C = "../Common.ui";
 SceneBlur {}
 Group { Background: #000000(0.55); }
 
-// Behind the panels: only drops onto the exposed backdrop reach this empty slot.
 Group #InventoryBackdrop {
   Anchor: (Full: 0);
-  // The backdrop is a mouse drop surface, not an inventory navigation section.
+
   NavExclude: true;
   ItemGrid #InventoryDropZone {
     Anchor: (Full: 0);
@@ -21,16 +20,15 @@ Group #InventoryBackdrop {
     AreItemsDraggable: false;
     RenderItemQualityBackground: false;
     Padding: 0;
-    // No SlotBackground: a 4096px textured slot renders as a missing-texture box when other asset packs are loaded.
+
     Style: (SlotSize: 4096, SlotIconSize: 1, SlotSpacing: 0);
   }
 }
 
-// InventoryPage.ui and InGame/Common.ui: 715 + 410*2 + 38*2.
 Group #InventoryShell {
   Anchor: (Width: 1721, Top: 0, Bottom: 20);
   LayoutMode: Left;
-  // ExtraEquipment.ui aligns its grid with the armor grid from this origin.
+
   Group #ExtraEquipmentHost { Anchor: (Width: 110, Height: 362, Top: 231); }
   Group #PlayerPanelHost {
     Anchor: (Width: 410, Height: 720, Top: 180);

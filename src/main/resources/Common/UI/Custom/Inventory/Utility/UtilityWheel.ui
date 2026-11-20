@@ -32,9 +32,6 @@ $G = "../InventoryGridStyle.ui";
   Style: @ChoiceStyle;
 };
 
-// ItemGrid paints its own rectangular mouse highlight. Keep its native drag
-// surface under a render mask, then render the same slots in a display-only
-// grid so the wheel's native wedge is the only visible hover effect.
 @ChoiceMask = Group {
   Anchor: (Width: 64, Height: 64);
   MaskTexturePath: "Textures/TransparentSlot.png";
@@ -61,8 +58,7 @@ Button #UtilityWheel {
   Anchor: (Full: 0);
   Background: #000000(0);
   Style: (Default: (), Hovered: (), Pressed: ());
-  // The native wheel dims the special slot, pointer and binding beneath its
-  // translucent center. Decorative layers preserve the center's drop target.
+
   Group #UtilityCenterPointer {
     Anchor: (Left: 116, Top: 59, Width: 79, Height: 136);
     Background: "Textures/SpecialSlotPointer.png";
@@ -88,9 +84,7 @@ Button #UtilityWheel {
     HitTestVisible: false;
   }
   Group #UtilityWheelOverlay { Anchor: (Full: 0); Background: "Textures/ItemSlotSelectorBackground.png"; HitTestVisible: false; }
-  // Native choices run clockwise starting from Bottom-Left, leaving the
-  // bottom slice for unequip:
-  // Slot 0 = Bottom-Left, Slot 1 = Top-Left, Slot 2 = Top-Right, Slot 3 = Bottom-Right.
+
   Group #UtilitySelected0 { Anchor: (Full: 0); Background: "Textures/ItemSlotSelectorSelected2.png"; Visible: false; HitTestVisible: false; }
   Group #UtilitySelected1 { Anchor: (Full: 0); Background: "Textures/ItemSlotSelectorSelected3.png"; Visible: false; HitTestVisible: false; }
   Group #UtilitySelected2 { Anchor: (Full: 0); Background: "Textures/ItemSlotSelectorSelected0.png"; Visible: false; HitTestVisible: false; }
@@ -101,7 +95,7 @@ Button #UtilityWheel {
   Group #UtilityHovered2 { Anchor: (Full: 0); Background: "Textures/ItemSlotSelectorHovered3.png"; Visible: false; HitTestVisible: false; }
   Group #UtilityHovered3 { Anchor: (Full: 0); Background: "Textures/ItemSlotSelectorHovered2.png"; Visible: false; HitTestVisible: false; }
   Group #UtilityHoveredClear { Anchor: (Full: 0); Background: "Textures/ItemSlotSelectorHoveredClear.png"; Visible: false; HitTestVisible: false; }
-  // Wedge hit strips sit behind the native item grids, preserving item dragging.
+
   Group #UtilityWedgeHitRegions { Anchor: (Full: 0); }
   @ChoiceMask #UtilityChoiceMask0 { Anchor: (Left: 20, Top: 156, Width: 64, Height: 64); @Choice #UtilityChoiceGrid0 {} }
   @ChoiceMask #UtilityChoiceMask1 { Anchor: (Left: 60, Top: 36, Width: 64, Height: 64); @Choice #UtilityChoiceGrid1 {} }

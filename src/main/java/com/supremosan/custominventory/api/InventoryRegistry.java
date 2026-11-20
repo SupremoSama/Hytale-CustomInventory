@@ -9,7 +9,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Pattern;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-/** Deterministic registrations; active hosts queue reconciliation on change. No dependency on a consumer mod. */
 public final class InventoryRegistry {
     private static final Pattern ID = Pattern.compile("[a-z][a-z0-9_.-]*:[a-z][a-z0-9_./-]*");
     private final ConcurrentMap<String, Entry<InventoryPageDefinition>> pages = new ConcurrentHashMap<>();
@@ -18,7 +17,6 @@ public final class InventoryRegistry {
     private final ConcurrentMap<String, Entry<InventoryItemTooltipDefinition>> itemTooltips = new ConcurrentHashMap<>();
     private final CopyOnWriteArrayList<Runnable> changes = new CopyOnWriteArrayList<>();
 
-    /** Notify hosts to reconcile registrations on their owning thread. */
     public Registration onChange(Runnable listener) {
         Objects.requireNonNull(listener);
         changes.add(listener);
@@ -36,7 +34,6 @@ public final class InventoryRegistry {
         }
     }
 
-    /** Identity token for an exact registration, including re-registration of the same definition. */
     public static final class Entry<T> {
         private final T definition;
         private Entry(T definition) { this.definition = definition; }
@@ -45,7 +42,6 @@ public final class InventoryRegistry {
 
     @FunctionalInterface
     public interface Registration extends AutoCloseable {
-        /** Idempotent; removes only the exact registration represented by this handle. */
         @Override void close();
     }
 
@@ -85,7 +81,6 @@ public final class InventoryRegistry {
                 .thenComparing(entry -> entry.definition.id())).toList();
     }
 
-    /** Registers a description source for native item grids, without altering server item metadata. */
     public Registration registerItemTooltip(InventoryItemTooltipDefinition definition) {
         Objects.requireNonNull(definition, "definition");
         var entry = new Entry<>(definition);
@@ -96,7 +91,6 @@ public final class InventoryRegistry {
         return () -> { if (closed.compareAndSet(false, true) && itemTooltips.remove(definition.id(), entry)) changed(); };
     }
 
-    /** First non-null description wins in ascending order, then identifier order. */
     public String itemTooltip(InventoryItemTooltipContext context) {
         Objects.requireNonNull(context, "context");
         var providers = itemTooltips.values().stream().sorted(Comparator
@@ -118,7 +112,6 @@ public final class InventoryRegistry {
         return id == null ? null : extensions.get(id);
     }
 
-    /** Immutable deterministic snapshot. */
     public List<InventoryPageDefinition> pagesSnapshot() {
         return pages.values().stream().map(entry -> entry.definition).sorted(Comparator.comparingInt(InventoryPageDefinition::order)
                 .thenComparing(InventoryPageDefinition::id)).toList();

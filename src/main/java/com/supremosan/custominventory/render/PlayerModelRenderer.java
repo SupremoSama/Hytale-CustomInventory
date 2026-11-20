@@ -48,25 +48,15 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.BiConsumer;
 
-/**
- * The single writer of player {@link ModelComponent}s for equipment and other mod attachments.
- * <p>
- * A player's ModelComponent is the bare player model; the client draws the skin from PlayerSkin.
- * Once attachments are injected, the skin is rebuilt as attachments too (honoring armor that hides
- * cosmetics and the player's armor visibility settings), so several mods can contribute without
- * overwriting each other. Players nobody contributes to keep the native model untouched.
- * Rebuilds run on the player's world thread and are coalesced per player.
- */
 public final class PlayerModelRenderer {
     private static final HytaleLogger LOGGER = HytaleLogger.forEnclosingClass();
     private static final ThreadLocal<Boolean> REBUILDING = ThreadLocal.withInitial(() -> false);
     private static final String INNER_HAIR_PREFIX = "Items/Hats/InnerHair_";
 
-    /** Free-form attachments per player, keyed by namespaced contribution id, in insertion order. */
     private static final Map<UUID, Map<String, ModelAttachment>> ATTACHMENTS = new ConcurrentHashMap<>();
     private static final Map<UUID, List<ModelAttachment>> PREVIOUS_INJECTED = new ConcurrentHashMap<>();
     private static final Map<UUID, String> BASE_MODEL_ASSETS = new ConcurrentHashMap<>();
-    /** Players whose model this renderer has replaced; they keep being rebuilt until they leave. */
+
     private static final Set<UUID> MODIFIED = ConcurrentHashMap.newKeySet();
     private static final Map<UUID, Mode> PENDING = new ConcurrentHashMap<>();
     private static final Map<String, ModelAsset.AnimationSet> ANIMATIONS = new ConcurrentHashMap<>();
@@ -76,15 +66,12 @@ public final class PlayerModelRenderer {
     private PlayerModelRenderer() { }
 
     public enum Mode {
-        /** Re-inject contributions on top of the current model. */
         ATTACHMENTS,
-        /** Also rebuild the skin parts, e.g. after armor, skin or settings changes. */
+
         FULL
     }
 
     public static boolean isRebuilding() { return Boolean.TRUE.equals(REBUILDING.get()); }
-
-    // Contributions ---------------------------------------------------------------------------
 
     public static void put(UUID player, String key, ModelAttachment attachment) {
         Objects.requireNonNull(attachment, "attachment");
@@ -121,9 +108,6 @@ public final class PlayerModelRenderer {
         REBUILT.remove(listener);
     }
 
-    // Scheduling ------------------------------------------------------------------------------
-
-    /** Thread-safe; looks the player up and rebuilds on their world thread. */
     public static void requestRebuild(UUID player, Mode mode) {
         var universe = Universe.get();
         var playerRef = universe == null ? null : universe.getPlayer(player);
@@ -133,13 +117,11 @@ public final class PlayerModelRenderer {
         schedule(player, ref, ref.getStore(), mode);
     }
 
-    /** Call on the player's world thread. */
     public static void requestRebuild(Ref<EntityStore> ref, Store<EntityStore> store, Mode mode) {
         var uuid = uuid(store, ref);
         if (uuid != null) schedule(uuid, ref, store, mode);
     }
 
-    /** Several requests before the rebuild runs collapse into one, keeping the strongest mode. */
     private static void schedule(UUID uuid, Ref<EntityStore> ref, Store<EntityStore> store, Mode mode) {
         boolean[] schedule = {false};
         PENDING.compute(uuid, (ignored, pending) -> {
@@ -185,12 +167,10 @@ public final class PlayerModelRenderer {
         REBUILT.clear();
     }
 
-    // Rebuild ---------------------------------------------------------------------------------
-
     private static void rebuild(Ref<EntityStore> ref, Store<EntityStore> store, UUID uuid, Mode mode) {
         if (!ref.isValid() || ref.getStore() != store || store.getComponent(ref, Player.getComponentType()) == null) return;
         var contributions = contributions(ref, store, uuid);
-        // Leave untouched players on the native model; a first takeover must rebuild the skin.
+
         if (!MODIFIED.contains(uuid)) {
             if (contributions.isEmpty()) return;
             mode = Mode.FULL;
@@ -206,7 +186,7 @@ public final class PlayerModelRenderer {
             REBUILDING.set(false);
         }
         if (!replaced) return;
-        // A new model makes clients rebuild the character, so worn and held items are re-sent.
+
         markEquipmentOutdated(ref, store);
         for (var listener : REBUILT) {
             try {
@@ -217,7 +197,6 @@ public final class PlayerModelRenderer {
         }
     }
 
-    /** Equipment slots first, in slot order, then free-form attachments in insertion order. */
     private static List<ModelAttachment> contributions(Ref<EntityStore> ref, Store<EntityStore> store, UUID uuid) {
         var result = new ArrayList<ModelAttachment>();
         for (short slot = 0; slot < ExtraEquipment.SLOT_COUNT; slot++) {
@@ -231,12 +210,6 @@ public final class PlayerModelRenderer {
         return result;
     }
 
-    /**
-     * Replacing the model also resets the player's movement settings (engine
-     * {@code PlayerUpdateMovementManager}), e.g. ending a flight, so it only happens on a real change.
-     *
-     * @return true if the model was replaced
-     */
     private static boolean rebuildModel(Ref<EntityStore> ref, Store<EntityStore> store, UUID uuid, Mode mode,
                                         List<ModelAttachment> contributions) {
         var modelComponent = store.getComponent(ref, ModelComponent.getComponentType());
@@ -250,7 +223,6 @@ public final class PlayerModelRenderer {
         var previous = PREVIOUS_INJECTED.remove(uuid);
         if (previous != null) removePreviousAttachments(attachments, previous);
 
-        // Another model (e.g. a transformation) is not a player skin: only re-inject contributions.
         boolean rebuildSkin = mode == Mode.FULL && skin != null && !hasExternalModel(uuid, current);
         BodySkinData body = rebuildSkin
                 ? resolveBodySkinData(skin, current)
@@ -302,7 +274,6 @@ public final class PlayerModelRenderer {
                 && Double.compare(left.getWeight(), right.getWeight()) == 0;
     }
 
-    /** ModelAttachment has no equals(), and contributions are new objects on every rebuild. */
     private static boolean hasSameRebuildState(Model current, List<ModelAttachment> attachments, BodySkinData body) {
         return sameAttachments(current.getAttachments(), attachments)
                 && Objects.equals(current.getGradientSet(), body.gradientSet() != null ? body.gradientSet() : current.getGradientSet())
@@ -355,8 +326,6 @@ public final class PlayerModelRenderer {
                 current.getPhobiaModelAssetId()
         );
     }
-
-    // Skin reconstruction ---------------------------------------------------------------------
 
     private static void rebuildSkinAttachments(Store<EntityStore> store, Ref<EntityStore> ref, PlayerSkin skin,
                                                String bodyGradientId, List<ModelAttachment> attachments) {
@@ -426,7 +395,6 @@ public final class PlayerModelRenderer {
         return new BodySkinData(gradientId, bodyPart.getGradientSet(), bodyPart.getGreyscaleTexture());
     }
 
-    /** Cosmetics hidden by equipped armor whose own rendering the player has not switched off. */
     private static Set<Cosmetic> resolveHiddenCosmetics(Store<EntityStore> store, Ref<EntityStore> ref,
                                                         PlayerSettings settings) {
         Set<Cosmetic> hidden = EnumSet.noneOf(Cosmetic.class);
@@ -490,7 +458,6 @@ public final class PlayerModelRenderer {
         if (!hiddenCosmetics.contains(cosmetic)) addSkinPart(attachments, rawId, registry, bodyGradientId);
     }
 
-    /** Headgear that hides the haircut leaves a close-cropped inner hair of the same type. */
     private static void addHaircutPart(List<ModelAttachment> attachments, PlayerSkin skin, CosmeticRegistry registry,
                                        Set<Cosmetic> hiddenCosmetics, String bodyGradientId) {
         if (skin.haircut == null) return;
@@ -586,9 +553,6 @@ public final class PlayerModelRenderer {
 
     private record BodySkinData(String gradientId, String gradientSet, String texture) { }
 
-    // Triggers --------------------------------------------------------------------------------
-
-    /** Armor visibility settings change which cosmetics armor hides. */
     public static final class OnPlayerSettingsChange extends RebuildOnChange<PlayerSettings> {
         @Override public ComponentType<EntityStore, PlayerSettings> componentType() { return PlayerSettings.getComponentType(); }
     }
@@ -597,7 +561,6 @@ public final class PlayerModelRenderer {
         @Override public ComponentType<EntityStore, PlayerSkinComponent> componentType() { return PlayerSkinComponent.getComponentType(); }
     }
 
-    /** Native code replacing the model drops injected attachments; put them back. */
     public static final class OnModelChange extends RebuildOnChange<ModelComponent> {
         @Override public ComponentType<EntityStore, ModelComponent> componentType() { return ModelComponent.getComponentType(); }
 

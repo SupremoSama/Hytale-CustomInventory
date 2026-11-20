@@ -2,7 +2,6 @@ package com.supremosan.custominventory.ui;
 
 import com.hypixel.hytale.common.util.java.ManifestUtil;
 
-/** Runtime game version shown beneath the native Early Access label. */
 final class GameVersionLabel {
     private GameVersionLabel() {
     }

@@ -8,7 +8,6 @@ import com.supremosan.custominventory.api.*;
 
 import java.util.List;
 
-/** The player's carried memories, matching MemoriesWindow rather than the world's deposited collection. */
 public final class CollectedMemoriesContent implements InventoryContent {
     private int renderedCapacity;
     private List<Memory> renderedMemories = List.of();

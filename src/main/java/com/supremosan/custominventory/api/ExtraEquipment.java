@@ -13,10 +13,6 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
 
-/**
- * Saved accessory inventory. Plugins register item eligibility for each equipment slot.
- * Equip/unequip notifications and per-slot visibility are managed through {@link EquipmentManager}.
- */
 public final class ExtraEquipment extends InventoryComponent {
     public static final short HAT = 0, BACKPACK = 1, COLLAR = 2, BELT = 3;
     public static final short SLOT_COUNT = 4;
@@ -27,13 +23,13 @@ public final class ExtraEquipment extends InventoryComponent {
             .builder(ExtraEquipment.class, ExtraEquipment::new, InventoryComponent.CODEC)
             .append(new com.hypixel.hytale.codec.KeyedCodec<>("LegacyTrueBackpackMigrated", com.hypixel.hytale.codec.Codec.BOOLEAN),
                     (o, value) -> o.legacyTrueBackpackMigrated = value, o -> o.legacyTrueBackpackMigrated).add()
-            // Bit per slot; absent in older saves, so every slot starts visible.
+
             .append(new com.hypixel.hytale.codec.KeyedCodec<>("HiddenSlots", com.hypixel.hytale.codec.Codec.INTEGER),
                     (o, value) -> o.hiddenSlots = value == null ? 0 : value, o -> o.hiddenSlots).add()
             .afterDecode(ExtraEquipment::configure).build();
     private boolean legacyTrueBackpackMigrated;
     private int hiddenSlots;
-    /** Last item announced to equipment listeners per slot. Runtime only; empty after loading. */
+
     private final ItemStack[] announced = new ItemStack[SLOT_COUNT];
     public boolean isLegacyTrueBackpackMigrated() { return legacyTrueBackpackMigrated; }
     public void markLegacyTrueBackpackMigrated() { legacyTrueBackpackMigrated = true; markChanged(); }
@@ -50,10 +46,8 @@ public final class ExtraEquipment extends InventoryComponent {
     }
     public static boolean validSlot(short slot) { return slot >= 0 && slot < SLOT_COUNT; }
 
-    /** Saved player preference for the slot; independent of whether an item is equipped. */
     public boolean isSlotVisible(short slot) { return !validSlot(slot) || (hiddenSlots & (1 << slot)) == 0; }
 
-    /** Use {@link EquipmentManager#setVisible} so listeners can apply the change. */
     boolean setSlotVisible(short slot, boolean visible) {
         int next = visible ? hiddenSlots & ~(1 << slot) : hiddenSlots | (1 << slot);
         if (next == hiddenSlots) return false;

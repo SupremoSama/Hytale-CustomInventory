@@ -3,7 +3,6 @@ package com.supremosan.custominventory.inventory;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.inventory.container.ItemContainer;
 
-/** A detached snapshot of a displayed source. Selecting never removes an item from its container. */
 public final class InventorySelection {
     private final NativeInventorySection section;
     private final ItemContainer container;
@@ -22,7 +21,6 @@ public final class InventorySelection {
         return fromDisplayed(section, container, slot, container.getItemStack((short) slot));
     }
 
-    /** Uses the last displayed snapshot rather than substituting an item that appeared after rendering. */
     public static InventorySelection fromDisplayed(NativeInventorySection section, ItemContainer container,
                                                    int slot, ItemStack displayed) {
         if (section == null || !InventoryOperations.validSlot(container, slot) || ItemStack.isEmpty(displayed)) return null;
@@ -60,7 +58,6 @@ public final class InventorySelection {
                 && expected.getOverrideDroppedItemAnimation() == current.getOverrideDroppedItemAnimation();
     }
 
-    /** Only rebase quantities removed by an already validated native move; preserve every other item property. */
     public InventorySelection afterRemoval(ItemStack current, int maximumRemoved) {
         if (ItemStack.isEmpty(current)) return null;
         int removed = expected.getQuantity() - current.getQuantity();
@@ -70,10 +67,9 @@ public final class InventorySelection {
         return new InventorySelection(section, container, slot, current);
     }
 
-    /** Snapshots include server metadata, durability and quality; display copies are a separate operation. */
     public static ItemStack snapshot(ItemStack stack) {
         if (ItemStack.isEmpty(stack)) return null;
-        // The engine's getMetadata() returns a detached BSON clone, including nested values.
+
         ItemStack copy = stack.withMetadata(stack.getMetadata());
         copy.setOverrideDroppedItemAnimation(stack.getOverrideDroppedItemAnimation());
         return copy;

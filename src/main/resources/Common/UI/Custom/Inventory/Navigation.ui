@@ -2,7 +2,6 @@ $C = "../Common.ui";
 $T = "TooltipStyle.ui";
 $K = "InputBinding.ui";
 
-// GamePageNavigation.ui and GamePageNavigationButton.ui from the installed client.
 @NavigationLabelStyle = LabelStyle(HorizontalAlignment: Center, VerticalAlignment: Center, FontName: "Secondary", RenderBold: true, FontSize: 17, TextColor: #7c8b99, RenderUppercase: true);
 @NavigationSelectedLabelStyle = LabelStyle(...@NavigationLabelStyle, TextColor: #ffffff);
 @NavigationDisabledLabelStyle = LabelStyle(...@NavigationLabelStyle, TextColor: #7c8b99(0.4));
@@ -30,14 +29,12 @@ $K = "InputBinding.ui";
   Style: @ButtonStyle;
   TextTooltipStyle: $T.@ButtonTextTooltipStyle;
   Group {
-    // Native content is vertically centered within the 66px navigation button.
     Anchor: (Height: 28);
     Padding: (Horizontal: 23);
     LayoutMode: Left;
     HitTestVisible: false;
     Label #Name { Style: @LabelStyle; Text: @Text; }
-    // Native ActionButton keeps the 10px gap on its outer container, so it
-    // does not reduce the binding chip's measured minimum width.
+
     Group #BindingGroup {
       Visible: @HasBinding;
       Anchor: (Left: 10, Height: 28);
@@ -91,7 +88,7 @@ Group #InventoryNavigation {
           LayoutMode: Middle;
           Anchor: (Right: 16);
           Label { Style: (RenderBold: true, FontSize: 18, TextColor: #ffffff(0.8), RenderUppercase: true, HorizontalAlignment: End); Text: %client.gamePageNavigation.earlyAccess; }
-          // Filled by the page from the running game's manifest version.
+
           Label #NavigationVersionLabel { Style: (FontSize: 15, TextColor: #7c8b99, HorizontalAlignment: End); Text: ""; }
         }
         Group { Background: "Textures/EarlyAccessSign.png"; Anchor: (Width: 31, Height: 50); }

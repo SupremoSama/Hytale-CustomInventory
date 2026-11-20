@@ -5,10 +5,6 @@ import com.hypixel.hytale.server.core.modules.i18n.I18nModule;
 import java.text.MessageFormat;
 import java.util.Map;
 
-/**
- * Mod-owned UI text from Server/Languages/&lt;locale&gt;/server.lang ("custominventory.*" keys).
- * English is embedded so a missing locale or key never shows a raw key.
- */
 public final class InventoryText {
     private static final String PREFIX = "server.custominventory.";
     private static final Map<String, String> ENGLISH = Map.ofEntries(

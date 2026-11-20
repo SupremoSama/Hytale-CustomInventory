@@ -1,7 +1,6 @@
 package com.supremosan.custominventory.inventory;
 
 import com.hypixel.hytale.event.EventRegistration;
-import com.hypixel.hytale.logger.HytaleLogger;
 import com.hypixel.hytale.protocol.PickupLocation;
 import com.hypixel.hytale.protocol.packets.interface_.CustomUIEventBindingType;
 import com.hypixel.hytale.server.core.inventory.InventoryComponent;
@@ -34,9 +33,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
-/** Persistent native grids with detached drag snapshots shared by every inventory section. */
 public final class NativeInventoryContent implements InventoryContent {
-    private static final HytaleLogger LOGGER = HytaleLogger.forEnclosingClass();
     private static final List<NativeInventorySection> PERSISTENT_SECTIONS = List.of(
             NativeInventorySection.STORAGE, NativeInventorySection.HOTBAR,
             NativeInventorySection.ARMOR, NativeInventorySection.UTILITY, NativeInventorySection.EXTRA);
@@ -79,15 +76,15 @@ public final class NativeInventoryContent implements InventoryContent {
     private NativeInventorySection lastClickedSection;
     private Integer lastClickedSlot;
     private long lastClickedTime;
-    /** Right-button sweep: one deposit per visit; exiting a slot permits another deposit. */
+
     private boolean rightSweep;
     private final Set<DragKey> sweepVisited = new java.util.HashSet<>();
-    /** Keep release bookkeeping until the matching Dropped callback has been consumed. */
+
     private final Set<DragKey> releasedRightPlacements = new java.util.HashSet<>();
     private record SweepSlot(NativeInventorySection section, int slot) { }
-    /** Shift-drag: slots already quick-moved during the current shift gesture. */
+
     private final Set<SweepSlot> shiftSwept = new java.util.HashSet<>();
-    /** Tracks whether the active drag holding session was initiated or held by right mouse button. */
+
     private boolean rightDragSession;
 
     public NativeInventoryContent() {
@@ -114,7 +111,6 @@ public final class NativeInventoryContent implements InventoryContent {
         }
     }
 
-    /** The shell mounts both panels before invoking this controller beneath #InventoryShell. */
     @Override
     public void build(InventoryContext context, UICommandBuilder commands,
                       InventoryEventBindings events, String selector) {
@@ -133,7 +129,6 @@ public final class NativeInventoryContent implements InventoryContent {
         render(context, commands, events, selector);
     }
 
-    /** Updates mounted slots without accumulating a second set of drag bindings. */
     public void refresh(InventoryContext context, UICommandBuilder commands, String selector) {
         render(context, commands, null, selector);
     }
@@ -250,7 +245,6 @@ public final class NativeInventoryContent implements InventoryContent {
         refreshHotbar(context, commands, selector);
     }
 
-    /** The backpack body is remounted when switching tabs; its drag session stays shared with the player grids. */
     public void mountBackpack(InventoryContext context, UICommandBuilder commands, InventoryEventBindings events, String selector) {
         mountBackpack(context, commands, events, selector, true);
     }
@@ -328,7 +322,7 @@ public final class NativeInventoryContent implements InventoryContent {
         commands.set(outline + ".Visible", visible);
         if (visible) {
             Anchor anchor = new Anchor();
-            // Native slot center: grid padding 2 + (slot size 74 - sprite 112) / 2.
+
             anchor.setLeft(Value.of(slot * 76 - 17));
             anchor.setTop(Value.of(-17));
             anchor.setWidth(Value.of(112));
@@ -337,7 +331,6 @@ public final class NativeInventoryContent implements InventoryContent {
         }
     }
 
-    /** Native active-slot changes do not always emit an item-container change. */
     public void refreshUtility(InventoryContext context, UICommandBuilder commands, String selector) {
         var section = NativeInventorySection.UTILITY;
         var container = InventoryOperations.resolveContainer(context.ref(), context.store(), section);
@@ -352,8 +345,6 @@ public final class NativeInventoryContent implements InventoryContent {
         var snapshot = new ItemStack[capacity];
         for (short index = 0; index < capacity; index++) snapshot[index] = InventorySelection.snapshot(container.getItemStack(index));
         if (!Arrays.equals(displayed.get(section), snapshot)) {
-            // A center-only update must not advance snapshots for wheel icons it
-            // did not send. Let the normal render synchronize every changed grid.
             context.requestRefresh();
             return;
         }
@@ -365,14 +356,7 @@ public final class NativeInventoryContent implements InventoryContent {
 
     @Override
     public void handleEvent(InventoryContext context, InventoryContentEvent event) {
-        if (event != null && event.action() != null && !"HoverSource".equals(event.action())
-                && !"UtilityWheelHover".equals(event.action()) && !"UnhoverSource".equals(event.action())
-                && !"UtilityWheelUnhover".equals(event.action())) {
-            LOGGER.atInfo().log("[CustomInventory] handleEvent: action=%s, payload=%s, slot=%s, shiftHeld=%s, rmb=%s",
-                    event.action(), event.payload(), event.slotIndex(), event.shiftHeld(), event.rightMouseButton());
-        }
         if (event.mouseButton() != null && !event.rightMouseButton() && !isLeftButton(event)) {
-            // Middle/auxiliary buttons belong to native resizing and must not place a stack.
             boolean slotClick = switch (event.action() == null ? "" : event.action()) {
                 case "DragSource", "UtilityWheelDragSource", "DragPress", "UtilityWheelDragPress",
                      "DragRelease", "UtilityWheelDragRelease", "CompleteSourceRelease", "CompleteUtilitySourceRelease",
@@ -397,8 +381,7 @@ public final class NativeInventoryContent implements InventoryContent {
             dragOrigin = null;
             shiftSourceGesture = false;
             rightDragSession = false;
-            // Hiding a wheel source can emit this while the client still holds its stack.
-            // Keep its keyed snapshot, but do not use it as the next gesture's default.
+
             return;
         }
         if ("DragPress".equals(event.action()) || "UtilityWheelDragPress".equals(event.action())) {
@@ -523,7 +506,7 @@ public final class NativeInventoryContent implements InventoryContent {
             return;
         }
         boolean press = "DragPress".equals(event.action()) || "UtilityWheelDragPress".equals(event.action());
-        // Right placement happens on press; its release must not place a second time.
+
         if (press && !event.rightMouseButton() || release && (rightSweep || event.rightMouseButton())) {
             if (press) endSweep();
             if (release) finishRightSweep();
@@ -558,7 +541,6 @@ public final class NativeInventoryContent implements InventoryContent {
             return;
         }
         if ("HoverSource".equals(action)) {
-            // Carrying a stack with the right button held: place one in each newly entered compatible slot.
             if (dragOrigin != null && dragOrigin.quantity() > 0 && (rightSweep || event.rightMouseButton() || rightDragSession)
                     && destination != null) {
                 if (!sweepVisited.contains(destinationKey) && canDepositOne(target, destination)) {
@@ -571,7 +553,6 @@ public final class NativeInventoryContent implements InventoryContent {
                 if (dragOrigin != null && event.slotIndex() != null && target != NativeInventorySection.UTILITY) {
                     var entered = new SweepSlot(target, event.slotIndex());
                     if (shiftSourceGesture && !Boolean.FALSE.equals(event.shiftHeld())) {
-                        // Shift held across slots: quick-move each one once (Minecraft shift-drag).
                         if (!(entered.section() == dragOrigin.section() && entered.slot() == dragOrigin.slot())
                                 && shiftSwept.add(entered) && context != null
                                 && !InventoryOperations.locked(context.ref(), context.store())) {
@@ -584,7 +565,6 @@ public final class NativeInventoryContent implements InventoryContent {
             }
         }
         if ("DropOne".equals(action)) {
-            // Late terminal callbacks cannot recreate a holding gesture from a source remainder.
             if (dragOrigin == null || destinationKey == null) return;
             if (press) {
                 if (!rightSweep) releasedRightPlacements.clear();
@@ -597,7 +577,7 @@ public final class NativeInventoryContent implements InventoryContent {
         }
         if ("DragSource".equals(action)) {
             reconcileRemovals();
-            // SlotClicking can accompany a destination click; keep the existing held source.
+
             if (dragOrigin != null) return;
             var slots = displayed.get(target);
             Integer slot = wheel ? UtilitySlotProjection.wheelIndex(event.payload(), event.slotIndex(), slots.length)
@@ -605,14 +585,10 @@ public final class NativeInventoryContent implements InventoryContent {
                     ? UtilitySlotProjection.sourceIndex(event.slotIndex(), displayedUtilitySlot, slots.length, null) : event.slotIndex();
             var captured = slot == null || slot < 0 || slot >= slots.length ? null
                     : InventorySelection.fromDisplayed(target, displayedContainers.get(target), slot, slots[slot]);
-            // The same click callback can accompany placement onto an empty slot.
-            // An empty destination must not erase the source carried by the client.
+
             if (captured == null) {
-                LOGGER.atInfo().log("[CustomInventory] DragSource on empty/invalid slot: target=%s, slot=%s", target, slot);
                 return;
             }
-            LOGGER.atInfo().log("[CustomInventory] DragSource: target=%s, slot=%s, item=%s x%d, shiftHeld=%s",
-                    target, slot, captured.itemId(), captured.quantity(), event.shiftHeld());
             int sourceGrid = target == NativeInventorySection.UTILITY
                     ? wheel ? UtilitySlotProjection.wheelGridId(captured.slot()) : UtilitySlotProjection.CENTER_GRID_ID : target.id();
             var key = new DragKey(sourceGrid, event.slotIndex());
@@ -644,7 +620,7 @@ public final class NativeInventoryContent implements InventoryContent {
             lastClickedSection = target;
             lastClickedSlot = slot;
             lastClickedTime = System.currentTimeMillis();
-            // Leave the mounted grids/cursor untouched until Drop or DragCancelled.
+
             return;
         }
         if (!"Drop".equals(action) && !"DropOne".equals(action)) return;
@@ -687,9 +663,6 @@ public final class NativeInventoryContent implements InventoryContent {
                 if (sourceKey == null) sourceKey = new DragKey(dragGridId, sourceSlot);
                 projectedSource = source == NativeInventorySection.UTILITY;
             } else if (sourceId == null || source == NativeInventorySection.UTILITY) {
-                // Null split metadata and native IDs from a one-slot utility projection
-                // cannot name a unique visual origin. Accept only an unambiguous captured
-                // source; never substitute another same-ID stack or a live replacement.
                 var resolved = resolveCapturedSource(context, source,
                         source == NativeInventorySection.UTILITY && sourceSlot != null && sourceSlot != 0 ? sourceSlot : null,
                         drag == null ? null : drag.itemId(), drag == null ? null : drag.quantity());
@@ -741,14 +714,13 @@ public final class NativeInventoryContent implements InventoryContent {
             var result = moveRequest.move(context, expected, target, targetSlot, quantity,
                     displayedContainers.get(source), displayedContainers.get(target));
             if (result == InventoryOperations.Result.SUBMITTED && sourceKey != null && beforeMove != null) {
-                // Submission can be vetoed/deferred. Consume only a confirmed source removal.
                 pendingRemovals.put(sourceKey, new PendingRemoval(beforeMove, quantity, System.nanoTime(), dragOrigin));
                 reconcileRemovals();
             }
             if (result == InventoryOperations.Result.SUBMITTED && target == NativeInventorySection.UTILITY
                     && displayedUtilitySlot < 0) {
                 var container = InventoryOperations.resolveContainer(context.ref(), context.store(), target);
-                // A submitted native move can be deferred; only activate a slot already populated by it.
+
                 if (container != null && container == displayedContainers.get(target) && !ItemStack.isEmpty(container.getItemStack(targetSlot.shortValue()))) {
                     UtilitySlotSelector.selectActiveSlot(context, targetSlot);
                 }
@@ -796,12 +768,6 @@ public final class NativeInventoryContent implements InventoryContent {
         }
     }
 
-    /**
-     * A stationary shift gesture has no destination-enter/drop callback. Complete
-     * it on the native ItemGrid mouse-release event, and re-deliver the source's
-     * authoritative slots so its detached client drag is reconciled immediately.
-     * Releases over other slots remain owned by ItemGrid's normal Dropped event.
-     */
     private boolean completeSourceRelease(InventoryContext context, InventoryContentEvent event) {
         var origin = dragOrigin;
         if (origin == null) return false;
@@ -814,13 +780,10 @@ public final class NativeInventoryContent implements InventoryContent {
                 ? UtilitySlotProjection.sourceIndex(event.slotIndex(), displayedUtilitySlot, slots.length, origin) : event.slotIndex();
         boolean sameSlot = origin.section() == section && slot != null && origin.slot() == slot;
         boolean matches = completesShiftSourceRelease(shiftSourceGesture, event.shiftHeld(), event.rightMouseButton(), sameSlot);
-        LOGGER.atInfo().log("[CustomInventory] completeSourceRelease check: origin=%s:%s, target=%s:%s, shiftGesture=%s, shiftHeld=%s, matches=%s",
-                origin.section(), origin.slot(), section, slot, shiftSourceGesture, event.shiftHeld(), matches);
         if (!matches) {
             return false;
         }
 
-        LOGGER.atInfo().log("[CustomInventory] completeSourceRelease triggering quickMove for %s:%s", section, slot);
         if (context != null && !InventoryOperations.locked(context.ref(), context.store())) quickMove(context, section, slot);
 
         releasedSources.add(section);
@@ -889,7 +852,7 @@ public final class NativeInventoryContent implements InventoryContent {
         }
 
         String itemId = drag.itemId();
-        // If dragOrigin is already actively tracking this exact source and item, preserve its remaining carried quantity.
+
         if (dragOrigin != null && dragOrigin.section() == source && dragOrigin.slot() == sourceSlot
                 && (itemId == null || itemId.equals(dragOrigin.itemId()))) {
             return;
@@ -1024,7 +987,6 @@ public final class NativeInventoryContent implements InventoryContent {
                 || "LeftButton".equalsIgnoreCase(event.mouseButton()) || "LeftMouseButton".equalsIgnoreCase(event.mouseButton());
     }
 
-    /** Checks whether a slot can receive 1 deposited item from the held cursor stack. */
     public boolean canDepositOne(NativeInventorySection targetSection, int targetSlot) {
         if (dragOrigin == null || dragOrigin.quantity() <= 0) return false;
         var container = displayedContainers.get(targetSection);
@@ -1036,11 +998,8 @@ public final class NativeInventoryContent implements InventoryContent {
         return container.canAddItemStackToSlot((short) targetSlot, source.withQuantity(1), false, true);
     }
 
-    /** Native shift-click destination rules, shared by shift-release and shift-drag. */
     private void quickMove(InventoryContext context, NativeInventorySection section, Integer slot) {
         if (context == null || section == null || slot == null) {
-            LOGGER.atInfo().log("[CustomInventory] quickMove early return: context=%s, section=%s, slot=%s",
-                    context != null, section, slot);
             return;
         }
         ItemContainer sourceContainer = displayedContainers.get(section);
@@ -1048,18 +1007,13 @@ public final class NativeInventoryContent implements InventoryContent {
             sourceContainer = InventoryOperations.resolveContainer(context.ref(), context.store(), section);
         }
         if (sourceContainer == null || !InventoryOperations.validSlot(sourceContainer, slot)) {
-            LOGGER.atWarning().log("[CustomInventory] quickMove invalid source: container=%s, validSlot=%s",
-                    sourceContainer != null, sourceContainer != null && InventoryOperations.validSlot(sourceContainer, slot));
             return;
         }
 
         ItemStack sourceStack = sourceContainer.getItemStack(slot.shortValue());
         if (ItemStack.isEmpty(sourceStack)) {
-            LOGGER.atInfo().log("[CustomInventory] quickMove aborted: slot %s in %s is empty", slot, section);
             return;
         }
-        LOGGER.atInfo().log("[CustomInventory] quickMove starting: section=%s, slot=%s, item=%s x%d",
-                section, slot, sourceStack.getItemId(), sourceStack.getQuantity());
 
         ItemContainer storageContainer = displayedContainers.get(NativeInventorySection.STORAGE);
         if (storageContainer == null) storageContainer = InventoryOperations.resolveContainer(context.ref(), context.store(), NativeInventorySection.STORAGE);
@@ -1067,7 +1021,6 @@ public final class NativeInventoryContent implements InventoryContent {
         if (hotbarContainer == null) hotbarContainer = InventoryOperations.resolveContainer(context.ref(), context.store(), NativeInventorySection.HOTBAR);
 
         if (section == NativeInventorySection.EXTRA || section == NativeInventorySection.ARMOR || section == NativeInventorySection.UTILITY) {
-            LOGGER.atInfo().log("[CustomInventory] quickMove unequipping from %s to storage/hotbar", section);
             if (storageContainer != null && hotbarContainer != null) {
                 sourceContainer.moveItemStackFromSlot(slot.shortValue(), sourceStack.getQuantity(), storageContainer, hotbarContainer);
             } else if (storageContainer != null) {
@@ -1082,7 +1035,6 @@ public final class NativeInventoryContent implements InventoryContent {
             return;
         }
 
-        // 1. Try to equip as armor if the respective slot is empty
         ItemContainer armorContainer = displayedContainers.get(NativeInventorySection.ARMOR);
         if (armorContainer == null) armorContainer = InventoryOperations.resolveContainer(context.ref(), context.store(), NativeInventorySection.ARMOR);
         if (armorContainer != null && sourceStack.getItem() != null) {
@@ -1090,10 +1042,8 @@ public final class NativeInventoryContent implements InventoryContent {
             if (itemArmor != null && itemArmor.getArmorSlot() != null) {
                 short armorSlot = (short) itemArmor.getArmorSlot().ordinal();
                 boolean slotEmpty = armorSlot >= 0 && armorSlot < armorContainer.getCapacity() && ItemStack.isEmpty(armorContainer.getItemStack(armorSlot));
-                LOGGER.atInfo().log("[CustomInventory] quickMove checking armor: armorSlot=%d, isEmpty=%s", armorSlot, slotEmpty);
                 if (slotEmpty) {
                     var tx = sourceContainer.moveItemStackFromSlotToSlot(slot.shortValue(), sourceStack.getQuantity(), armorContainer, armorSlot);
-                    LOGGER.atInfo().log("[CustomInventory] quickMove armor equip result: %s", tx != null && tx.succeeded());
                     if (tx != null && tx.succeeded()) {
                         releasedSources.add(section);
                         releasedSources.add(NativeInventorySection.ARMOR);
@@ -1104,19 +1054,14 @@ public final class NativeInventoryContent implements InventoryContent {
             }
         }
 
-        // 2. Try to equip to ExtraEquipment if the respective slot is empty
         ItemContainer extraContainer = displayedContainers.get(NativeInventorySection.EXTRA);
         if (extraContainer == null) extraContainer = InventoryOperations.resolveContainer(context.ref(), context.store(), NativeInventorySection.EXTRA);
         if (extraContainer != null) {
             for (short extraSlot = 0; extraSlot < ExtraEquipment.SLOT_COUNT; extraSlot++) {
                 boolean accepts = ExtraEquipment.accepts(extraSlot, sourceStack);
                 boolean slotEmpty = ItemStack.isEmpty(extraContainer.getItemStack(extraSlot));
-                if (accepts) {
-                    LOGGER.atInfo().log("[CustomInventory] quickMove checking extra slot %d: accepts=true, isEmpty=%s", extraSlot, slotEmpty);
-                }
                 if (slotEmpty && accepts) {
                     var tx = sourceContainer.moveItemStackFromSlotToSlot(slot.shortValue(), sourceStack.getQuantity(), extraContainer, extraSlot);
-                    LOGGER.atInfo().log("[CustomInventory] quickMove extra equip result: %s", tx != null && tx.succeeded());
                     if (tx != null && tx.succeeded()) {
                         releasedSources.add(section);
                         releasedSources.add(NativeInventorySection.EXTRA);
@@ -1127,25 +1072,16 @@ public final class NativeInventoryContent implements InventoryContent {
             }
         }
 
-        // 3. Normal container transfer based on whether Backpack UI is opened or closed
         ItemContainer bpContainer = displayedContainers.get(NativeInventorySection.BACKPACK);
         boolean backpackOpen = bpContainer != null;
-        LOGGER.atInfo().log("[CustomInventory] quickMove container transfer: section=%s, backpackOpen=%s", section, backpackOpen);
         if (backpackOpen) {
-            // Backpack UI opened:
-            // - hotbar to backpack
-            // - inventory (storage) to backpack
-            // - backpack to inventory (storage)
             if (section == NativeInventorySection.STORAGE || section == NativeInventorySection.HOTBAR) {
                 var tx = sourceContainer.moveItemStackFromSlot(slot.shortValue(), sourceStack.getQuantity(), bpContainer);
-                LOGGER.atInfo().log("[CustomInventory] quickMove %s -> BACKPACK remainder: %s", section,
-                        tx != null && tx.getAddTransaction() != null ? tx.getAddTransaction().getRemainder() : "null");
                 releasedSources.add(section);
                 releasedSources.add(NativeInventorySection.BACKPACK);
                 context.requestRefresh();
                 return;
             } else if (section == NativeInventorySection.BACKPACK) {
-                LOGGER.atInfo().log("[CustomInventory] quickMove BACKPACK -> STORAGE");
                 if (storageContainer != null && hotbarContainer != null) {
                     sourceContainer.moveItemStackFromSlot(slot.shortValue(), sourceStack.getQuantity(), storageContainer, hotbarContainer);
                 } else if (storageContainer != null) {
@@ -1160,33 +1096,23 @@ public final class NativeInventoryContent implements InventoryContent {
                 return;
             }
         } else {
-            // Backpack UI closed:
-            // - hotbar to inventory (storage)
-            // - inventory (storage) to hotbar
             if (section == NativeInventorySection.STORAGE) {
-                LOGGER.atInfo().log("[CustomInventory] quickMove STORAGE -> HOTBAR");
                 if (hotbarContainer != null) {
                     var tx = sourceContainer.moveItemStackFromSlot(slot.shortValue(), sourceStack.getQuantity(), hotbarContainer);
-                    LOGGER.atInfo().log("[CustomInventory] quickMove STORAGE -> HOTBAR remainder: %s",
-                            tx != null && tx.getAddTransaction() != null ? tx.getAddTransaction().getRemainder() : "null");
                     releasedSources.add(NativeInventorySection.STORAGE);
                     releasedSources.add(NativeInventorySection.HOTBAR);
                     context.requestRefresh();
                     return;
                 }
             } else if (section == NativeInventorySection.HOTBAR) {
-                LOGGER.atInfo().log("[CustomInventory] quickMove HOTBAR -> STORAGE");
                 if (storageContainer != null) {
                     var tx = sourceContainer.moveItemStackFromSlot(slot.shortValue(), sourceStack.getQuantity(), storageContainer);
-                    LOGGER.atInfo().log("[CustomInventory] quickMove HOTBAR -> STORAGE remainder: %s",
-                            tx != null && tx.getAddTransaction() != null ? tx.getAddTransaction().getRemainder() : "null");
                     releasedSources.add(NativeInventorySection.HOTBAR);
                     releasedSources.add(NativeInventorySection.STORAGE);
                     context.requestRefresh();
                     return;
                 }
             } else if (section == NativeInventorySection.BACKPACK) {
-                LOGGER.atInfo().log("[CustomInventory] quickMove (backpack closed) BACKPACK -> STORAGE");
                 if (storageContainer != null && hotbarContainer != null) {
                     sourceContainer.moveItemStackFromSlot(slot.shortValue(), sourceStack.getQuantity(), storageContainer, hotbarContainer);
                 } else if (storageContainer != null) {
@@ -1203,7 +1129,6 @@ public final class NativeInventoryContent implements InventoryContent {
         }
     }
 
-    /** Drops every stack matching the hovered (or last selected) item from the player's own sections. */
     private void dropAllOfType(InventoryContext context) {
         reconcileRemovals();
         var source = hoveredSelection != null ? hoveredSelection : dropButtonSelection;
@@ -1243,13 +1168,11 @@ public final class NativeInventoryContent implements InventoryContent {
         context.requestRefresh();
     }
 
-    /** Classifies only the terminal mouse gesture; it never submits an item move. */
     static boolean completesShiftSourceRelease(boolean shiftAtPress, Boolean shiftAtRelease,
                                                boolean rightButton, boolean sameSourceSlot) {
         return !rightButton && sameSourceSlot && (shiftAtPress || Boolean.TRUE.equals(shiftAtRelease));
     }
 
-    /** Drops only the stack currently carried by the client onto the full-screen dimmed backdrop. */
     private void dropOutside(InventoryContext context, InventoryContentEvent event) {
         reconcileRemovals();
         var drag = event.drag();
@@ -1329,8 +1252,6 @@ public final class NativeInventoryContent implements InventoryContent {
             pendingRemovals.put(sourceKey, new PendingRemoval(origin, quantity, System.nanoTime()));
         }
         if (result == InventoryOperations.Result.SUBMITTED) {
-            // A backdrop release consumes the whole cursor stack, including a split.
-            // A second callback from the same release must not resolve its source again.
             dragOrigins.clear();
             dropButtonSelection = null;
         }
@@ -1348,7 +1269,6 @@ public final class NativeInventoryContent implements InventoryContent {
         endSweep();
     }
 
-    /** Captures a source before right-click/split gestures, which may not emit a left-click event. */
     public void observeUtilityHover(Integer index, boolean center) {
         observeHover(NativeInventorySection.UTILITY, 0, !center, index == null ? null : Integer.toString(index));
     }
@@ -1367,8 +1287,7 @@ public final class NativeInventoryContent implements InventoryContent {
         int gridId = section == NativeInventorySection.UTILITY
                 ? wheel ? UtilitySlotProjection.wheelGridId(actual) : UtilitySlotProjection.CENTER_GRID_ID : section.id();
         var key = new DragKey(gridId, visibleSlot);
-        // Only register candidate drag origins when not already actively dragging an item.
-        // Hovering other slots while carrying an item must not pollute dragOrigins.
+
         if (dragOrigin == null) {
             dragOrigins.put(key, origin);
         }
@@ -1380,13 +1299,11 @@ public final class NativeInventoryContent implements InventoryContent {
             if (!InventoryOperations.validSlot(before.container(), before.slot())) return true;
             var current = before.container().getItemStack((short) before.slot());
             if (before.matches(current)) {
-                // InventoryUtils has no completion result. Bound the wait so a vetoed
-                // native request cannot leave a source permanently blocked.
                 return System.nanoTime() - entry.getValue().submittedAt() >= PENDING_MOVE_TIMEOUT;
             }
             var remaining = before.afterRemoval(current, entry.getValue().quantity());
             if (ItemStack.isEmpty(current) && before.quantity() > entry.getValue().quantity()) return true;
-            if (remaining == null && !ItemStack.isEmpty(current)) return true; // Unrelated changes stay stale.
+            if (remaining == null && !ItemStack.isEmpty(current)) return true;
             var heldBefore = entry.getValue().heldBefore();
             if (heldBefore != null) {
                 if (heldBefore.sameSnapshot(dragOrigin)) {

@@ -2,7 +2,6 @@ $C = "../../Common.ui";
 $G = "../InventoryGridStyle.ui";
 $T = "../TooltipStyle.ui";
 
-// Mirrors the content of the installed client's BasicCraftingPanel.ui.
 @SlotSelectedBackground = PatchStyle(TexturePath: "Textures/SlotHighlight.png");
 @SlotSelectedOverlay = PatchStyle(TexturePath: "Textures/ItemSlotSelected.png");
 @SlotMemoryLockedItemIcon = PatchStyle(TexturePath: "Textures/SlotIconMemoryLocked.png");

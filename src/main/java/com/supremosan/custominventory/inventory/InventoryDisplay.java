@@ -9,7 +9,6 @@ import com.supremosan.custominventory.api.InventoryItemTooltipContext;
 import com.supremosan.custominventory.api.InventoryRegistry;
 import org.bson.BsonDocument;
 
-/** Converts server items into safe CustomUI display copies without altering authoritative inventory. */
 public final class InventoryDisplay {
     private InventoryDisplay() {}
 
@@ -22,7 +21,6 @@ public final class InventoryDisplay {
         return slot(stack, description(stack, context, registry, sectionId, slot));
     }
 
-    /** Resolve independently so hosts can detect tooltip changes even when the underlying stack is unchanged. */
     public static String description(ItemStack stack, InventoryContext context, InventoryRegistry registry,
                                      String sectionId, int slot) {
         if (ItemStack.isEmpty(stack)) return null;
@@ -30,13 +28,11 @@ public final class InventoryDisplay {
         return custom != null ? custom : metadataDescription(stack);
     }
 
-    /** Serializes a resolved description into the supported CustomUI field, never arbitrary BSON. */
     public static ItemGridSlot slot(ItemStack stack, String description) {
         ItemGridSlot display = new ItemGridSlot();
         display.setActivatable(true);
         if (ItemStack.isEmpty(stack)) return display;
 
-        // Legacy CustomUI accepts client display metadata, not arbitrary server BSON documents.
         ItemStack copy = stack.withMetadata((BsonDocument) null);
         copy.setOverrideDroppedItemAnimation(stack.getOverrideDroppedItemAnimation());
         display.setItemStack(copy);

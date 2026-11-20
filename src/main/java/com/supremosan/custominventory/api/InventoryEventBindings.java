@@ -6,7 +6,6 @@ import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
 
 import java.util.Objects;
 
-/** Scopes selectors and event envelopes to the active content instance. */
 public final class InventoryEventBindings {
     private final UIEventBuilder events;
     private final String hostSelector;
@@ -29,7 +28,6 @@ public final class InventoryEventBindings {
         bindingCount++;
     }
 
-    /** Adapts a contribution's local Action/Target envelope and generic form values. */
     public void addEventBinding(CustomUIEventBindingType type, String relativeSelector, EventData local) {
         addEventBinding(type, relativeSelector, local, true);
     }
@@ -54,7 +52,6 @@ public final class InventoryEventBindings {
         return hostSelector.isBlank() ? relativeSelector : hostSelector.strip() + " " + relativeSelector;
     }
 
-    /** Useful for codec-level verification; do not replace core routing fields. */
     public EventData data(String action, String payload) {
         return new EventData().append("Action", "Content").append("PageId", pageId)
                 .append("SessionId", sessionId).append("ContentAction", Objects.requireNonNull(action))

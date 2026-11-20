@@ -15,7 +15,7 @@ public final class CustomInventoryCommand extends AbstractPlayerCommand {
     public CustomInventoryCommand(CustomInventoryPlugin plugin) {
         super("custominventory", "Open the extensible custom inventory");
         this.plugin = plugin;
-        // Only displays and edits the invoking player's own inventory, under native access checks.
+
         requireNoPermission();
     }
 

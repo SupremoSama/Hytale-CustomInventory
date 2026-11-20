@@ -4,7 +4,6 @@ $T = "TooltipStyle.ui";
 
 @HotkeyStyle = LabelStyle(FontSize: 12, RenderBold: true, TextColor: #919191, HorizontalAlignment: Center, VerticalAlignment: Center);
 
-// Native StoragePanel padding and slot pitch; the grid measures its own rows.
 $C.@Container #InventoryPanel {
   @ContentPadding = Padding(Full: 15);
   FlexWeight: 1;
@@ -37,8 +36,6 @@ $C.@Container #InventoryPanel {
     }
   }
   #Content {
-    // Center both grids as one column so keys and active-slot artwork share
-    // the hotbar origin even when the panel has a fractional pixel remainder.
     Group #InventoryGridCenter {
       LayoutMode: Center;
       Group #InventoryGridColumn {
@@ -81,7 +78,6 @@ $C.@Container #InventoryPanel {
             Label { Anchor: (Left: 612, Top: 4, Width: 18, Height: 18); Background: (TexturePath: "Textures/HotKeyBackground.png", Border: 4); Padding: (Horizontal: 5); Style: @HotkeyStyle; Text: "9"; }
           }
           Group #ActiveHotbarSlot {
-            // Center the native 112px sprite on the 74px slot after 2px padding.
             Anchor: (Left: -17, Top: -17, Width: 112, Height: 112);
             Background: "Textures/ActiveSlot.png";
             HitTestVisible: false;

@@ -1,6 +1,5 @@
 package com.supremosan.custominventory.api;
 
-/** Native ItemGrid source metadata; both naming variants are emitted by supported clients. */
 public record InventoryDragData(Integer sourceInventorySectionId, Integer sourceSlotId,
                                 Integer dragSourceInventorySectionId, Integer dragSourceSlotId,
                                 String itemStackId, Integer itemStackQuantity,

@@ -26,17 +26,11 @@ import java.text.MessageFormat;
 import java.util.Locale;
 import java.util.Objects;
 
-/**
- * Player preview, native statistics and armor-eye controls for an already mounted PlayerPanel.ui,
- * plus the Gear panel's per-slot equipment eyes, whose state belongs to {@link EquipmentManager}.
- * CharacterPreviewComponent owns its client-side player setup; the server does not inject model data.
- * Calls execute on the owning world thread. Grid rendering/transfers remain the inventory content's job.
- */
 public final class PlayerInventoryPanel {
     public static final String TOGGLE_ARMOR_VISIBILITY = "ToggleArmorVisibility";
     public static final String TOGGLE_EQUIPMENT_VISIBILITY = "ToggleEquipmentVisibility";
     private static final String EQUIPMENT_HOST = "#ExtraEquipmentHost";
-    /** Indexed by ExtraEquipment slot: HAT, BACKPACK, COLLAR, BELT. */
+
     private static final String[] EQUIPMENT_EYES = {"#HatVisibility", "#BackpackVisibility", "#CollarVisibility", "#BeltVisibility"};
     private static final String[] EQUIPMENT_LABELS = {"hat", "backpack", "collar", "belt"};
     private final UtilitySlotSelector utilitySelector = new UtilitySlotSelector();
@@ -44,7 +38,6 @@ public final class PlayerInventoryPanel {
     private String snapshotHost;
     private boolean equipmentVisible = false;
 
-    /** The event bindings must be scoped to hostSelector, for example #PlayerPanelHost. */
     public void build(InventoryContext context, UICommandBuilder commands,
                       InventoryEventBindings events, InventoryEventBindings equipmentEvents, String hostSelector) {
         com.supremosan.custominventory.api.ExtraEquipment.ensure(context.ref(), context.store());
@@ -58,13 +51,12 @@ public final class PlayerInventoryPanel {
             events.bind(CustomUIEventBindingType.Activating, slot.selector(), TOGGLE_ARMOR_VISIBILITY, slot.name(), true);
         }
         utilitySelector.build(context, commands, events, hostSelector);
-        // A full rebuild creates fresh UI elements, so it must always write their values.
+
         snapshot = null;
         snapshotHost = null;
         refresh(context, commands, hostSelector);
     }
 
-    /** Refresh only values/eye state without remounting the character preview or equipment grids. */
     public void refresh(InventoryContext context, UICommandBuilder commands, String hostSelector) {
         commands.set("#ExtraEquipmentPanel.Visible", equipmentVisible);
         commands.set(EQUIPMENT_HOST + " #ExtraEquipmentEyes.Visible", equipmentVisible);
@@ -88,7 +80,6 @@ public final class PlayerInventoryPanel {
         snapshotHost = hostSelector;
     }
 
-    /** ExtraEquipment.ui: a header action while expanded, a pull-tab against the player panel while collapsed. */
     private static Anchor extraEquipmentToggleAnchor(boolean expanded) {
         var anchor = new Anchor();
         anchor.setLeft(Value.of(expanded ? 70 : 76));
@@ -98,7 +89,6 @@ public final class PlayerInventoryPanel {
         return anchor;
     }
 
-    /** @return true for recognized armor-eye actions, including stale/denied requests. */
     public boolean handleEvent(InventoryContext context, InventoryContentEvent event) {
         if ("ToggleExtraEquipment".equals(event.action())) {
             equipmentVisible = !equipmentVisible;
@@ -113,7 +103,7 @@ public final class PlayerInventoryPanel {
         if (utilitySelector.handleEvent(context, event)) return true;
         if (!TOGGLE_ARMOR_VISIBILITY.equals(event.action())) return false;
         toggleArmorVisibility(context, ArmorVisibilityPreferences.Slot.parse(event.payload()));
-        // Like the original page, denied and stale requests refresh the interface as well.
+
         context.requestRefresh();
         return true;
     }
@@ -129,7 +119,7 @@ public final class PlayerInventoryPanel {
         var updated = ArmorVisibilityPreferences.toggle(settings, slot, option);
         if (updated == settings) return;
         context.store().putComponent(context.ref(), PlayerSettings.getComponentType(), updated);
-        // The native preference handler uses this flag to resend rendered equipment to the world.
+
         armor.setOutdatedEquipment(true);
     }
 
@@ -143,7 +133,6 @@ public final class PlayerInventoryPanel {
         }
     }
 
-    /** Each eye changes only its own slot. Locked eyes and stale (empty-slot) requests are ignored. */
     private static void toggleEquipmentVisibility(InventoryContext context, Short slot) {
         if (slot == null || InventoryOperations.locked(context.ref(), context.store())) return;
         if (EquipmentManager.getEquipped(context.ref(), context.store(), slot) == null

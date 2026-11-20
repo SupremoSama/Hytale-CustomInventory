@@ -24,11 +24,6 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
-/**
- * Routes native inventory requests without accessing game state from the packet thread.
- * Connection keys use object identity, so reconnecting with the same UUID cannot reuse queued work.
- * One orphan-window marker is retained per participating connection until disconnect or shutdown.
- */
 public final class InventoryPacketRouter<K> implements AutoCloseable {
     public static final String INVENTORY_PAGE_KEY = "com.supremosan.custominventory.ui.InventoryShellPage";
     private static final Set<String> STABLE_INVENTORY_SLOT_SELECTORS = Set.of(
@@ -44,12 +39,9 @@ public final class InventoryPacketRouter<K> implements AutoCloseable {
             "#InventoryShell #PlayerPanelHost #UtilityChoiceGrid3.Slots",
             "#InventoryShell #ContentHost #BackpackGrid.Slots");
 
-    /** All callbacks except enqueue run inside the accepted queued task. */
     public interface Actions<K> {
-        /** Queue on the owning world, validating the captured entity/store again before running. */
         boolean enqueue(K connection, Runnable task);
 
-        /** Invoke discarded when accepted work cannot run because its captured context became invalid. */
         default boolean enqueue(K connection, Runnable task, Runnable discarded) {
             return enqueue(connection, task);
         }
@@ -58,16 +50,12 @@ public final class InventoryPacketRouter<K> implements AutoCloseable {
 
         void openInventory(K connection);
 
-        /** Dismiss only this plugin's current shell, balancing the page lifecycle. */
         void closeInventory(K connection);
 
-        /** Close a real native window 0, or absorb an orphan; never dismiss the custom page here. */
         void closeWindowZero(K connection);
 
-        /** Detach only this plugin's active page without sending a page change over the native UI. */
         void relinquishInventory(K connection);
 
-        /** Inventory Data validates its mounted session; other events use the native PageManager. */
         void handleCustomPageInput(K connection, CustomPageEvent event);
 
         void dropHoveredInventoryItem(K connection, DropItemStack packet);
@@ -81,7 +69,7 @@ public final class InventoryPacketRouter<K> implements AutoCloseable {
     private final Actions<K> actions;
     private final String inventoryPageKey;
     private final ConcurrentMap<IdentityKey<K>, ConnectionState> connections = new ConcurrentHashMap<>();
-    // Published by authoritative server packets/world-thread snapshots, never by packet-thread ECS reads.
+
     private final ConcurrentMap<IdentityKey<K>, GameMode> gameModes = new ConcurrentHashMap<>();
     private volatile boolean active = true;
 
@@ -94,7 +82,6 @@ public final class InventoryPacketRouter<K> implements AutoCloseable {
         this.inventoryPageKey = Objects.requireNonNull(inventoryPageKey);
     }
 
-    /** @return true only when this router takes responsibility for the packet. */
     public boolean route(K connection, Packet packet) {
         Objects.requireNonNull(connection);
         Objects.requireNonNull(packet);
@@ -104,8 +91,6 @@ public final class InventoryPacketRouter<K> implements AutoCloseable {
         if (packet instanceof DropItemStack dropPacket) {
             var state = connections.get(key);
             if (state != null && state.inventoryPageVisible && gameModes.get(key) == GameMode.Adventure) {
-                // Do not let a native G request accidentally drop the active hotbar
-                // while the custom inventory displays a different hovered source.
                 return enqueue(connection, key, state, () -> actions.dropHoveredInventoryItem(connection, dropPacket));
             }
         }
@@ -127,8 +112,7 @@ public final class InventoryPacketRouter<K> implements AutoCloseable {
                     state.inventoryPageVisible = false;
                     state.epoch.incrementAndGet();
                 }
-                // Execute the native dismissal before changing the authoritative
-                // legacy-page flag. An earlier world task may still send SetPage.
+
                 return enqueue(connection, key, state, () -> {
                     actions.handleCustomPageInput(connection, event);
                     synchronized (state) { state.legacyPageActive = false; }
@@ -145,7 +129,7 @@ public final class InventoryPacketRouter<K> implements AutoCloseable {
         if (packet instanceof ClientOpenWindow open) {
             if (open.type == WindowType.PocketCrafting && gameModes.get(key) == GameMode.Adventure) {
                 var state = connections.computeIfAbsent(key, ignored -> new ConnectionState());
-                // Shutdown can race the map insertion. Do not retain or cancel after it wins.
+
                 if (!active) {
                     connections.remove(key, state);
                     return false;
@@ -155,7 +139,6 @@ public final class InventoryPacketRouter<K> implements AutoCloseable {
 
             var state = connections.get(key);
             if (state != null) {
-                // A newer native UI request supersedes a still-queued inventory redirect.
                 state.epoch.incrementAndGet();
                 enqueue(connection, key, state, () -> actions.relinquishInventory(connection));
             }
@@ -165,16 +148,13 @@ public final class InventoryPacketRouter<K> implements AutoCloseable {
         if (packet instanceof CloseWindow close && close.id == 0 && gameModes.get(key) == GameMode.Adventure) {
             var state = connections.get(key);
             if (state != null && state.redirectAccepted) {
-                // The client can close its locally opened native window after CustomPage replaces it.
-                // Its packet has no reason/generation, so it must not be used to dismiss our page.
                 return enqueue(connection, key, state, () -> actions.closeWindowZero(connection));
             }
         }
-        // Acknowledgements, dismissal and positive window IDs stay native-owned.
+
         return false;
     }
 
-    /** Observe server UI transitions without swallowing packets or touching pages/windows. */
     public void observeServerPacket(K connection, Packet packet) {
         Objects.requireNonNull(connection);
         Objects.requireNonNull(packet);
@@ -213,7 +193,6 @@ public final class InventoryPacketRouter<K> implements AutoCloseable {
         }
     }
 
-    /** Rechecked on the world thread before bypassing presentation or stable core-slot acknowledgements. */
     public boolean canDispatchInventoryInput(K connection) {
         var state = connections.get(new IdentityKey<>(connection));
         if (state == null || !active) return false;
@@ -242,7 +221,6 @@ public final class InventoryPacketRouter<K> implements AutoCloseable {
         return false;
     }
 
-    /** Mode is known before interception; unknown and non-Adventure clients keep native handlers. */
     public void observeGameMode(K connection, GameMode gameMode) {
         Objects.requireNonNull(connection);
         if (!active) return;
@@ -266,8 +244,6 @@ public final class InventoryPacketRouter<K> implements AutoCloseable {
     }
 
     private boolean enqueueRedirect(K connection, IdentityKey<K> key, ConnectionState state) {
-        // Queue submission is non-blocking. Serializing it per connection lets a repeated request
-        // coalesce only with work whose submission is known to have succeeded.
         synchronized (state) {
             return submitRedirect(connection, key, state);
         }
@@ -297,7 +273,6 @@ public final class InventoryPacketRouter<K> implements AutoCloseable {
                     if (actions.isInventoryOpen(connection)) actions.closeInventory(connection);
                     else actions.openInventory(connection);
                 } finally {
-                    // An obsolete request must not clear a newer world's/native transition's request.
                     state.pendingRedirect.compareAndSet(queuedRequest, null);
                 }
             }, () -> state.pendingRedirect.compareAndSet(queuedRequest, null));
@@ -321,7 +296,6 @@ public final class InventoryPacketRouter<K> implements AutoCloseable {
         gameModes.remove(key);
     }
 
-    /** Invalidate old-world work, retaining protection against late orphan window-0 closes. */
     public void worldRemoval(K connection) {
         var state = connections.get(new IdentityKey<>(Objects.requireNonNull(connection)));
         if (state != null) synchronized (state) {
@@ -348,8 +322,7 @@ public final class InventoryPacketRouter<K> implements AutoCloseable {
         private final AtomicReference<PendingRedirect> pendingRedirect = new AtomicReference<>();
         private volatile boolean redirectAccepted;
         private volatile boolean inventoryPageVisible;
-        // Packet order matches the native acknowledgement counter; true means
-        // identities, dynamic slots, bindings or structure changed, so the normal gate remains.
+
         private final Deque<Boolean> pageAcknowledgments = new ArrayDeque<>();
         private boolean legacyPageActive;
     }

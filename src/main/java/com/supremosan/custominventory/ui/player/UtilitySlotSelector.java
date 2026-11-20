@@ -17,7 +17,6 @@ import com.supremosan.custominventory.inventory.NativeInventorySection;
 
 import java.util.Locale;
 
-/** Native utility-wheel artwork with supported legacy CustomUI controls and native slot-change events. */
 public final class UtilitySlotSelector {
     public static final int DISPLAYED_SLOTS = 4;
     public static final String OPEN = "OpenUtilitySelector";
@@ -50,10 +49,7 @@ public final class UtilitySlotSelector {
         refresh(context, commands, host);
     }
 
-    /** Hover and explicit selection use the player-panel event scope. */
     static void bindEvents(InventoryEventBindings events) {
-        // Native button activation includes controller confirmation; opening the
-        // selector must not depend on a mouse-enter event.
         events.bind(CustomUIEventBindingType.Activating, "#UtilitySlotInputBinding", OPEN, "", false);
         events.bind(CustomUIEventBindingType.SlotMouseEntered, "#UtilityGrid", OPEN, "", false);
         events.bind(CustomUIEventBindingType.MouseEntered, "#UtilitySlotInputBinding", OPEN, "", false);
@@ -62,15 +58,13 @@ public final class UtilitySlotSelector {
         events.bind(CustomUIEventBindingType.SlotMouseExited, "#UtilityWheelCenterGrid", UNHOVER_CENTER, "", false);
         for (int index = 0; index < DISPLAYED_SLOTS; index++) {
             events.bind(CustomUIEventBindingType.SlotDoubleClicking, "#UtilityChoiceGrid" + index, SELECT, Integer.toString(index), false);
-            // The inventory-scoped hover binding also updates presentation.
-            // Binding the same grid event twice can replace its highlight handler.
+
         }
         events.bind(CustomUIEventBindingType.Activating, "#UtilityClear", SELECT, "-1", false);
         events.bind(CustomUIEventBindingType.MouseEntered, "#UtilityClear", HOVER, "-1", false);
         events.bind(CustomUIEventBindingType.MouseExited, "#UtilityClear", UNHOVER, "-1", false);
     }
 
-    /** Routes every wheel drag through the shell's shared authoritative inventory snapshot. */
     public static void bindInventoryEvents(InventoryEventBindings events) {
         for (int index = 0; index < DISPLAYED_SLOTS; index++) {
             String grid = "#PlayerPanelHost #UtilityChoiceGrid" + index;
@@ -100,8 +94,7 @@ public final class UtilitySlotSelector {
         displayedContainer = utility == null ? null : utility.getInventory();
         int capacity = displayedContainer == null ? 0 : Math.min(DISPLAYED_SLOTS, displayedContainer.getCapacity());
         displayed = new ItemStack[capacity];
-        // Selection authority must follow the live inventory even when no visual
-        // state changed and this refresh sends no commands to the client.
+
         for (short index = 0; index < capacity; index++) {
             displayed[index] = InventorySelection.snapshot(displayedContainer.getItemStack(index));
         }
@@ -140,8 +133,7 @@ public final class UtilitySlotSelector {
         if (OPEN.equals(event.action())) {
             if (validContext(context) && !InventoryOperations.locked(context.ref(), context.store())) {
                 open = true;
-                // The closed Z slot opens the wheel with the pointer already
-                // over its center; subsequent center-exit events remove the glow.
+
                 centerHovered = true;
             }
         } else if (CLOSE.equals(event.action())) {
@@ -173,7 +165,6 @@ public final class UtilitySlotSelector {
         return true;
     }
 
-    /** These events change only presentation and must never rewrite held-item grids. */
     public static boolean isPresentationEvent(String action) {
         return OPEN.equals(action) || CLOSE.equals(action) || HOVER.equals(action) || UNHOVER.equals(action)
                 || HOVER_CENTER.equals(action) || UNHOVER_CENTER.equals(action);
@@ -188,10 +179,6 @@ public final class UtilitySlotSelector {
         selectActiveSlot(context, slot);
     }
 
-    /**
-     * Shared with native drops after the engine has actually populated the destination.
-     * Returns whether the requested slot is selected; an event listener may choose another valid slot.
-     */
     public static boolean selectActiveSlot(InventoryContext context, int slot) {
         if (!validContext(context) || InventoryOperations.locked(context.ref(), context.store())) return false;
         var utility = context.store().getComponent(context.ref(), InventoryComponent.Utility.getComponentType());
@@ -204,7 +191,7 @@ public final class UtilitySlotSelector {
         context.store().invoke(context.ref(), event);
         if (event.isCancelled()) return false;
         byte target = event.getNewSlot();
-        // A plugin may redirect a native request, but it cannot escape this section's valid range.
+
         if (target < InventoryComponent.INACTIVE_SLOT_INDEX || target >= current.getCapacity()) return false;
         if (!validContext(context) || InventoryOperations.locked(context.ref(), context.store())
                 || context.store().getComponent(context.ref(), InventoryComponent.Utility.getComponentType()) != utility
@@ -214,7 +201,6 @@ public final class UtilitySlotSelector {
         return target == slot;
     }
 
-    /** Selecting never moves or removes a stack. */
     public static Validation validateSelection(ItemContainer displayedContainer, ItemStack[] displayed,
                                                ItemContainer current, Integer slot, boolean locked) {
         if (locked) return Validation.LOCKED;

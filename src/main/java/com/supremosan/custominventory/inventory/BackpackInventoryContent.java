@@ -7,7 +7,6 @@ import com.hypixel.hytale.server.core.modules.entity.player.PlayerSettings;
 import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.supremosan.custominventory.api.*;
 
-/** Native backpack storage and native bulk actions. Backpack upgrade/appearance rules remain extensions. */
 public final class BackpackInventoryContent implements InventoryContent {
     @Override public void build(InventoryContext context, UICommandBuilder commands, InventoryEventBindings bindings, String selector) {
         commands.append(selector, "Inventory/Backpack.ui");

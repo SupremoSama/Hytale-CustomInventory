@@ -2,7 +2,6 @@ package com.supremosan.custominventory;
 
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
-import com.hypixel.hytale.logger.HytaleLogger;
 import com.hypixel.hytale.protocol.GameMode;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.event.events.player.PlayerDisconnectEvent;
@@ -30,12 +29,10 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 public final class CustomInventoryPlugin extends JavaPlugin {
-    private static final HytaleLogger LOGGER = HytaleLogger.forEnclosingClass();
     private static volatile CustomInventoryPlugin instance;
     private final InventoryRegistry registry = new InventoryRegistry();
     private final Set<InventoryShellPage> sessions = ConcurrentHashMap.newKeySet();
     private final InventoryPacketBridge packetBridge = new InventoryPacketBridge(this::open);
-    private final Set<java.util.UUID> unhookedReported = ConcurrentHashMap.newKeySet();
     private volatile boolean running;
     private InventoryRegistry.Registration registryListener;
 
@@ -49,7 +46,6 @@ public final class CustomInventoryPlugin extends JavaPlugin {
 
     public InventoryRegistry getInventoryRegistry() { return registry; }
 
-    /** Open a session-local view with shared inventory/input; attach native bench windows if supplied. */
     public boolean openView(Ref<EntityStore> ref, Store<EntityStore> store, PlayerRef playerRef,
                             InventoryPageDefinition view, InventoryUiExtension extension, Window... windows) {
         if (!running) throw new IllegalStateException("CustomInventory is not running");
@@ -83,7 +79,7 @@ public final class CustomInventoryPlugin extends JavaPlugin {
         getEntityStoreRegistry().registerSystem(new com.supremosan.custominventory.api.ExtraEquipment.Changes());
         getEntityStoreRegistry().registerSystem(new com.supremosan.custominventory.inventory.ExtraEquipmentDeathSystem());
         getEntityStoreRegistry().registerSystem(new com.supremosan.custominventory.api.EquipmentManager.Dispatcher());
-        // The only writer of player models for equipment and mod attachments.
+
         getEntityStoreRegistry().registerSystem(new PlayerModelRenderer.OnPlayerSettingsChange());
         getEntityStoreRegistry().registerSystem(new PlayerModelRenderer.OnPlayerSkinChange());
         getEntityStoreRegistry().registerSystem(new PlayerModelRenderer.OnModelChange());
@@ -99,7 +95,6 @@ public final class CustomInventoryPlugin extends JavaPlugin {
         getCommandRegistry().registerCommand(new CustomInventoryCommand(this));
         getEventRegistry().registerGlobal(PlayerReadyEvent.class, this::onPlayerReady);
         getEventRegistry().registerGlobal(PlayerDisconnectEvent.class, event -> {
-            unhookedReported.remove(event.getPlayerRef().getUuid());
             PlayerModelRenderer.onPlayerLeave(event.getPlayerRef().getUuid());
             packetBridge.disconnect(event.getPlayerRef());
             for (var page : sessions) if (page.belongsTo(event.getPlayerRef())) page.closeForShutdown();
@@ -111,19 +106,15 @@ public final class CustomInventoryPlugin extends JavaPlugin {
                 for (var page : sessions) if (page.belongsTo(playerRef)) page.closeForWorldRemoval(event.getWorld());
             }
         });
-        LOGGER.atInfo().log("CustomInventory registered /custominventory and extensible native inventory content");
     }
 
     @Override
     protected void start() {
         packetBridge.register();
-        // A plugin restart may occur after the players' initial SetGameMode packets were sent.
+
         for (var playerRef : Universe.get().getPlayers().toArray(new PlayerRef[0])) {
             packetBridge.synchronizeGameMode(playerRef);
         }
-        LOGGER.atInfo().log("CustomInventory ready: %s pages, %s extension buttons", registry.pagesSnapshot().size(), registry.buttonsSnapshot().size());
-        LOGGER.atInfo().log("Adventure PocketCrafting requests now toggle CustomInventory on every network transport; "
-                + "other game modes and native window types keep their original handlers");
     }
 
     private void onPlayerReady(PlayerReadyEvent event) {
@@ -134,27 +125,21 @@ public final class CustomInventoryPlugin extends JavaPlugin {
         Runnable seed = () -> {
             if (!running || !ref.isValid() || ref.getStore() != store) return;
             var playerRef = store.getComponent(ref, PlayerRef.getComponentType());
-            // Saved players load with occupied slots; listeners must rebuild their visuals.
+
             com.supremosan.custominventory.api.EquipmentManager.announce(ref, store);
             PlayerModelRenderer.onPlayerReady(ref, store);
             if (playerRef != null && playerRef.getReference() == ref) {
                 packetBridge.synchronizeGameMode(playerRef);
-                if (!packetBridge.usesTransportHooks(playerRef) && unhookedReported.add(playerRef.getUuid())) {
-                    LOGGER.atInfo().log("%s joined before CustomInventory started; the Tab redirect falls back to "
-                            + "packet adapters, which only run on the dedicated QUIC transport", playerRef.getUsername());
-                }
             }
         };
         if (world.isInThread()) seed.run();
         else {
             try { world.execute(seed); }
             catch (RuntimeException worldStopped) {
-                // An unavailable world keeps the packet router on its native fail-open path.
             }
         }
     }
 
-    /** Invoke on the player's world thread. */
     public void open(Ref<EntityStore> ref, Store<EntityStore> store, PlayerRef playerRef) {
         if (!running || !ref.isValid() || ref.getStore() != store || playerRef.getReference() != ref
                 || InventoryOperations.locked(ref, store)) return;

@@ -52,13 +52,12 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
-/** Extensible inventory page using the supported custom-page lifecycle. */
 public final class InventoryShellPage extends InteractiveCustomUIPage<InventoryShellPage.Event> {
     private static final HytaleLogger LOGGER = HytaleLogger.forEnclosingClass();
     public static final String DEFAULT_PAGE = "inventory:native";
     public static final String MEMORIES_PAGE = "inventory:memories";
     public static final String BACKPACK_PAGE = "inventory:backpack";
-    // Deliberately outside the public registration ID grammar.
+
     private static final String INVENTORY_PANELS = "@inventory:panels";
     private static final String PLAYER_PANEL = "@inventory:player";
     private static final int MAX_VISIBLE_BACKPACK_SLOTS = 45;
@@ -89,7 +88,7 @@ public final class InventoryShellPage extends InteractiveCustomUIPage<InventoryS
     private volatile InventoryContext activeContext;
     private String pageId = DEFAULT_PAGE;
     private String sessionId;
-    // Token of the active content's mounted bindings; rotates only when the content binds again.
+
     private String contentSessionId;
     private long revision;
     private volatile boolean dismissed;
@@ -122,7 +121,6 @@ public final class InventoryShellPage extends InteractiveCustomUIPage<InventoryS
         startPanelRefresh();
     }
 
-    /** Restores this same page when the client has locally opened the native inventory again. */
     public void refocus(Ref<EntityStore> ref, Store<EntityStore> store) {
         if (!canRefocus(ref, store) || !remainInAdventure(ref, store)) return;
         activeContext = createContext(ref, store);
@@ -188,7 +186,7 @@ public final class InventoryShellPage extends InteractiveCustomUIPage<InventoryS
                 commands.clear("#ExtensionButtons");
             }
         }
-        // These controls remain mounted across extension page changes and inventory updates.
+
         if (initial) {
             var backdropEvents = new InventoryEventBindings(events, "#InventoryBackdrop", INVENTORY_PANELS, pageInstanceId);
             backdropEvents.bind(CustomUIEventBindingType.Dropped, "#InventoryDropZone", "DropOutside", "", false);
@@ -246,8 +244,7 @@ public final class InventoryShellPage extends InteractiveCustomUIPage<InventoryS
             var bindings = new InventoryEventBindings(events, "#ContentHost", pageId, sessionId);
             if (!initial && !pageChanged) activeContent.refresh(activeContext, commands, bindings, "#ContentHost");
             else activeContent.build(activeContext, commands, bindings, "#ContentHost");
-            // Mounted forms keep their bindings on presentation-only refreshes.
-            // A content rebuild/rebind gets a new token, invalidating events from removed controls.
+
             if (initial || pageChanged || bindings.bindingCount() > 0) contentSessionId = sessionId;
         } else if (activeContent == null) {
             commands.appendInline("#ContentHost", "Label { Text: \"No inventory pages registered.\"; Style: (TextColor: #c9d6df, FontSize: 18); }");
@@ -402,8 +399,6 @@ public final class InventoryShellPage extends InteractiveCustomUIPage<InventoryS
         }
     }
 
-    // Anchor fields are not individually writable CustomUI markup properties.
-    // Replace the complete value, preserving the fixed coordinates of the native tabs.
     static void applyCharacterTabLayout(UICommandBuilder commands, int entries) {
         var anchor = new Anchor();
         anchor.setLeft(Value.of(302));
@@ -435,14 +430,12 @@ public final class InventoryShellPage extends InteractiveCustomUIPage<InventoryS
         return new EventData().append("Action", action).append("ContentAction", contentAction).append("SessionId", pageInstanceId);
     }
 
-    /** Client-bound keys retain their @ prefix when the client returns the evaluated value. */
     public static void bindRecipeSearch(UIEventBuilder events, String pageInstanceId) {
         events.addEventBinding(CustomUIEventBindingType.ValueChanged, "#CraftingSearch",
                 new EventData().append("Action", "CraftingHeader").append("ContentAction", "FilterRecipes")
                         .append("SessionId", pageInstanceId).append(Event.SEARCH_QUERY, "#CraftingSearch.Value"), false);
     }
 
-    /** Extension tabs reuse the client's shared recipes icon, which has no state variants. */
     private static String tabIconPath(String icon, String state) {
         return "Recipes".equals(icon) ? "Common/RecipesIcon.png" : "Inventory/Textures/" + icon + state + "Icon.png";
     }
@@ -529,7 +522,7 @@ public final class InventoryShellPage extends InteractiveCustomUIPage<InventoryS
                 || "Chapters".equals(event.action) || "Refresh".equals(event.action)
                 || "CraftingHeader".equals(event.action) || "BackpackHeader".equals(event.action)
                 || "Content".equals(event.action) && (hostedView != null || event.pageId != null && event.pageId.startsWith("@extension:"));
-        // Content bound once at mount keeps working across refreshes; a rebuild or rebind invalidates older events.
+
         String expectedSession = "Navigate".equals(event.action) || "Button".equals(event.action)
                 ? navigationInstanceId : persistentEvent ? pageInstanceId : contentSessionId;
         if (hostedView != null && "Content".equals(event.action) && hostedView.id().equals(event.pageId))
@@ -627,7 +620,6 @@ public final class InventoryShellPage extends InteractiveCustomUIPage<InventoryS
                     }
                     if (playerPanel.handleEvent(activeContext, contentEvent)) {
                         if (UtilitySlotSelector.isPresentationEvent(event.contentAction)) {
-                            // Hover can occur while a stack is held. Do not rewrite any inventory Slots.
                             var commands = new UICommandBuilder();
                             playerPanel.refresh(activeContext, commands, "#PlayerPanelHost");
                             inventoryPanels.refreshDropAction(activeContext, commands);
@@ -636,7 +628,7 @@ public final class InventoryShellPage extends InteractiveCustomUIPage<InventoryS
                     }
                     return;
                 }
-                // A removed/replaced contribution cannot receive old UI events.
+
                 if (activeContent != null && (hostedView != null || activeRegistration == registry.getPageRegistration(pageId))
                         && Objects.equals(pageId, event.pageId)) {
                     activeContent.handleEvent(activeContext, contentEvent);
@@ -647,12 +639,6 @@ public final class InventoryShellPage extends InteractiveCustomUIPage<InventoryS
         }
     }
 
-    /**
-     * The game's legacy dispatcher drops Data while any presentation update awaits
-     * acknowledgement. During presentation and stable slot updates inventory bindings use this page's session,
-     * ownership and detached-source validation; dynamic extension bindings stay native.
-     * Acknowledgements and dismissal never pass through this path.
-     */
     public boolean tryHandleInventoryInput(Ref<EntityStore> ref, Store<EntityStore> store, String rawData) {
         if (rawData == null || !isActive(ref, store)) return false;
         Event event;
@@ -669,7 +655,6 @@ public final class InventoryShellPage extends InteractiveCustomUIPage<InventoryS
         return true;
     }
 
-    /** Native DropItemStack input is retargeted only while this Adventure page owns the UI. */
     public void dropHoveredItem(Ref<EntityStore> ref, Store<EntityStore> store, DropItemStack packet) {
         if (dismissed || !isActive(ref, store) || !remainInAdventure(ref, store)) return;
         String payload = packet != null ? (packet.inventorySectionId + ":" + packet.slotId) : "";
@@ -695,7 +680,6 @@ public final class InventoryShellPage extends InteractiveCustomUIPage<InventoryS
                         commands.getCommands(), new UIEventBuilder().getEvents()));
     }
 
-    /** Prevents old rendered events from applying to a newer selection or content session. */
     public static boolean acceptsEvent(String mountedSession, String eventSession) {
         return mountedSession != null && mountedSession.equals(eventSession);
     }
@@ -708,7 +692,6 @@ public final class InventoryShellPage extends InteractiveCustomUIPage<InventoryS
         return player != null && player.getPageManager().getCustomPage() == this;
     }
 
-    /** Called on the owning world thread, after checking this page's ownership. */
     private boolean remainInAdventure(Ref<EntityStore> ref, Store<EntityStore> store) {
         var player = store.getComponent(ref, Player.getComponentType());
         if (player != null && (hostedView != null || player.getGameMode() == GameMode.Adventure)) return true;
@@ -716,7 +699,6 @@ public final class InventoryShellPage extends InteractiveCustomUIPage<InventoryS
         return false;
     }
 
-    /** A dismissed or old-world shell must be replaced rather than refocused. */
     public boolean canRefocus(Ref<EntityStore> ref, Store<EntityStore> store) {
         return !dismissed && isActive(ref, store);
     }
@@ -753,7 +735,7 @@ public final class InventoryShellPage extends InteractiveCustomUIPage<InventoryS
                 else onDismiss(ref, store);
                 return;
             }
-            // Already on the world thread; avoid delayed updates leaking into a different page.
+
             var player = store.getComponent(ref, Player.getComponentType());
             if (player != null && isActive(ref, store)) {
                 player.getPageManager().updateLegacyCustomPage(new CustomPage(getClass().getName(),
@@ -764,10 +746,8 @@ public final class InventoryShellPage extends InteractiveCustomUIPage<InventoryS
         }
     }
 
-    /** Thread-safe reconciliation requested by registry registration/unregistration. */
     public void refreshRegistrations() { requestRefresh(); }
 
-    /** Keep the native preview/grids mounted while health, equipment visibility and hotbar selection change. */
     private void startPanelRefresh() {
         if (panelRefresh != null) return;
         panelRefresh = HytaleServer.SCHEDULED_EXECUTOR.scheduleAtFixedRate(() -> {
@@ -822,7 +802,6 @@ public final class InventoryShellPage extends InteractiveCustomUIPage<InventoryS
         if (context != null) {
             var world = context.store().getExternalData().getWorld();
             if (!world.isInThread()) {
-                // PageManager may detach an old-world page while opening one in the new world.
                 world.execute(() -> onDismiss(context.ref(), context.store()));
                 return;
             }
@@ -843,7 +822,6 @@ public final class InventoryShellPage extends InteractiveCustomUIPage<InventoryS
         }
     }
 
-    /** Queues teardown on the owning world thread. */
     public void closeForShutdown() {
         var ref = playerRef.getReference();
         var retainedContext = activeContext;
@@ -860,7 +838,6 @@ public final class InventoryShellPage extends InteractiveCustomUIPage<InventoryS
 
     public boolean belongsTo(PlayerRef player) { return playerRef == player; }
 
-    /** The old world owns listeners even after the player entity moves to another world. */
     public void closeForWorldRemoval(World world) {
         var retainedContext = activeContext;
         if (retainedContext == null || retainedContext.store().getExternalData().getWorld() != world) return;
@@ -872,11 +849,9 @@ public final class InventoryShellPage extends InteractiveCustomUIPage<InventoryS
 
     public static final class Event {
         public static final String SEARCH_QUERY = "@SearchQuery";
-        // ItemGrid can explicitly send null source/quantity metadata (for example
-        // when taking part of a stack). A non-PrimitiveCodec wrapper lets the
-        // BuilderCodec preserve those nulls instead of rejecting the entire event.
+
         private static final Codec<Integer> OPTIONAL_INTEGER = new FunctionCodec<>(Codec.INTEGER, value -> value, value -> value);
-        // Client versions may encode the mouse-button enum as a name or an integer.
+
         private static final Codec<String> MOUSE_BUTTON = new Codec<>() {
             @Override
             public String decode(org.bson.BsonValue value, ExtraInfo info) {
@@ -896,8 +871,7 @@ public final class InventoryShellPage extends InteractiveCustomUIPage<InventoryS
                 return Codec.STRING.toSchema(context);
             }
         };
-        // ItemGrid callbacks serialize UI mouse buttons: Left=1, Middle=2, Right=3.
-        // 0 is also accepted as Left for 0-indexed compatibility.
+
         private static final Codec<String> UI_MOUSE_BUTTON = new FunctionCodec<>(MOUSE_BUTTON,
                 value -> value == null ? null : switch (value) {
                     case "0", "1" -> "Left";
@@ -963,7 +937,6 @@ public final class InventoryShellPage extends InteractiveCustomUIPage<InventoryS
         public Integer dragItemStackQuantity;
 
         public String resolvedMouseButton() {
-            // ClickMouseButton belongs to this callback; drag fields belong to the pickup.
             if (clickMouseButton != null) return clickMouseButton;
             if (mouseButton != null) return mouseButton;
             if (button != null) return button;
@@ -971,8 +944,7 @@ public final class InventoryShellPage extends InteractiveCustomUIPage<InventoryS
                 if (pressedMouseButton != null) return pressedMouseButton;
                 return dragPressedMouseButton;
             }
-            // A Dropped callback can omit the current button. Its pickup button cannot
-            // turn a completed right placement into a second, whole-stack placement.
+
             return null;
         }
 
